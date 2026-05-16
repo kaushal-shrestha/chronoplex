@@ -1,6 +1,6 @@
 # ZoneAnchor Alarm
 
-ZoneAnchor Alarm is a native Android MVP for clocks and alarms pinned to chosen time zones.
+ZoneAnchor Alarm is a native Android app for clocks and alarms pinned to chosen time zones.
 
 The core behavior is intentionally different from a normal phone alarm:
 
@@ -26,14 +26,23 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 ./gradlew assembleDebug
 ```
 
-The app uses platform Android APIs only: `AlarmManager`, `SharedPreferences`, Java time, and notifications. No AndroidX dependency is required for this first version.
+The rewrite is Kotlin-first and uses Jetpack Compose, Material 3, Navigation Compose, Room, DataStore Preferences, coroutines, and `java.time`. The old Java/SharedPreferences implementation is preserved only through the one-shot migration path.
+
+For the full verification pass:
+
+```sh
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
+ANDROID_HOME="$HOME/Library/Android/sdk" \
+./gradlew assembleDebug lint test
+```
 
 ## Android Permissions
 
 The app declares:
 
-- `USE_EXACT_ALARM` for precise alarm scheduling.
+- `SCHEDULE_EXACT_ALARM` for precise alarm scheduling.
 - `POST_NOTIFICATIONS` for Android 13+ notification delivery.
 - `RECEIVE_BOOT_COMPLETED` so saved alarms are restored after reboot.
+- `USE_FULL_SCREEN_INTENT` so due alarms can present the ring screen.
 
 `AlarmManager.setAlarmClock` is used for the scheduled alert because this is a user-visible alarm experience and should remain precise.
