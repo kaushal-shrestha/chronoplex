@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "ZoneAnchor Alarm"
-include ":app"
+include(":app")
