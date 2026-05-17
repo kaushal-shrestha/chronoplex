@@ -1,4 +1,4 @@
-# ZoneAnchor Alarm — Feature Catalog
+# Chronoplex — Feature Catalog
 
 What the app does, organized by area. Each entry has a short description
 (release-notes voice) and a checklist for QA so the same document supports
