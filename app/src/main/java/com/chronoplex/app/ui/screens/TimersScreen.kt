@@ -76,7 +76,7 @@ fun TimersScreen(
     var moveTarget by remember { mutableStateOf<Timer?>(null) }
     var ungroupedCollapsed by remember { mutableStateOf(false) }
     var reorderMode by remember { mutableStateOf(false) }
-    if ((groupingEnabled || timers.isEmpty()) && reorderMode) reorderMode = false
+    if (timers.isEmpty() && reorderMode) reorderMode = false
 
     // Single per-screen tick drives every running timer's countdown.
     val now by produceState(initialValue = System.currentTimeMillis()) {
@@ -101,7 +101,7 @@ fun TimersScreen(
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
-                        if (!groupingEnabled && timers.size >= 2) {
+                        if (timers.size >= 2) {
                             IconButton(onClick = { reorderMode = true }) {
                                 Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.reorder))
                             }
@@ -131,7 +131,15 @@ fun TimersScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (reorderMode) {
-                TimersReorderableList(timers = timers, onReorder = { vm.reorderItems(it) })
+                if (groupingEnabled) {
+                    TimersGroupedReorderableList(
+                        timers = timers,
+                        groups = groups,
+                        onReorder = { vm.reorderItems(it) },
+                    )
+                } else {
+                    TimersReorderableList(timers = timers, onReorder = { vm.reorderItems(it) })
+                }
                 return@Box
             }
             LazyColumn(
@@ -390,6 +398,101 @@ private fun TimersReorderableList(timers: List<Timer>, onReorder: (List<Long>) -
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimersGroupedReorderableList(
+    timers: List<Timer>,
+    groups: List<Group>,
+    onReorder: (List<Long>) -> Unit,
+) {
+    var local by remember(timers.map { it.id }) { mutableStateOf(timers) }
+    val lazyListState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(
+        lazyListState = lazyListState,
+        onMove = { from, to ->
+            val fromId = from.key as? Long ?: return@rememberReorderableLazyListState
+            val toId = to.key as? Long ?: return@rememberReorderableLazyListState
+            val fromItem = local.firstOrNull { it.id == fromId } ?: return@rememberReorderableLazyListState
+            val toItem = local.firstOrNull { it.id == toId } ?: return@rememberReorderableLazyListState
+            if (fromItem.groupId != toItem.groupId) return@rememberReorderableLazyListState
+
+            local = local.toMutableList().apply {
+                val fromIdx = indexOfFirst { it.id == fromId }
+                val toIdx = indexOfFirst { it.id == toId }
+                if (fromIdx in indices && toIdx in indices) add(toIdx, removeAt(fromIdx))
+            }
+            val affectedIds = local.filter { it.groupId == fromItem.groupId }.map { it.id }
+            onReorder(affectedIds)
+        },
+    )
+    Column {
+        Text(
+            stringResource(R.string.reorder_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            val byGroup = local.groupBy { it.groupId }
+            groups.forEach { g ->
+                val members = byGroup[g.id].orEmpty()
+                item(key = "h-${g.id}") {
+                    GroupHeader(g.copy(collapsed = false), members.size, onToggleCollapsed = { })
+                }
+                items(members, key = { it.id }) { timer ->
+                    ReorderableItem(reorderState, key = timer.id) {
+                        TimerDragRow(timer = timer)
+                    }
+                }
+            }
+            val ungrouped = byGroup[null].orEmpty()
+            if (ungrouped.isNotEmpty()) {
+                item(key = "h-ungrouped") {
+                    UngroupedHeader(itemCount = ungrouped.size, collapsed = false, onToggleCollapsed = { })
+                }
+                items(ungrouped, key = { it.id }) { timer ->
+                    ReorderableItem(reorderState, key = timer.id) {
+                        TimerDragRow(timer = timer)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun sh.calvin.reorderable.ReorderableCollectionItemScope.TimerDragRow(timer: Timer) {
+    Card(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.DragHandle,
+                contentDescription = stringResource(R.string.reorder),
+                modifier = Modifier.draggableHandle().size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    timer.label.ifBlank { stateLabel(timer.state) },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    formatDuration(timer.durationMillis),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
