@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -39,6 +41,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.chronoplex.app.R
 import com.chronoplex.app.domain.Group
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /**
  * Picker dialog letting the user move an item between groups (including "no group")
@@ -138,6 +142,7 @@ fun ManageGroupsDialog(
     onCreate: (String) -> Unit,
     onRename: (Long, String) -> Unit,
     onDelete: (Long) -> Unit,
+    onReorder: (List<Long>) -> Unit,
     onDismiss: () -> Unit,
     memberCount: ((Long) -> Int)? = null,
 ) {
@@ -145,38 +150,63 @@ fun ManageGroupsDialog(
     var renameTarget by remember { mutableStateOf<Group?>(null) }
     var renameText by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<Group?>(null) }
+    // Local mirror of the group list so the LazyColumn shows the drag in flight.
+    var local by remember(groups.map { it.id }) { mutableStateOf(groups) }
+    val lazyListState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(
+        lazyListState = lazyListState,
+        onMove = { from, to ->
+            val fromId = from.key as? Long ?: return@rememberReorderableLazyListState
+            val toId = to.key as? Long ?: return@rememberReorderableLazyListState
+            local = local.toMutableList().apply {
+                val fromIdx = indexOfFirst { it.id == fromId }
+                val toIdx = indexOfFirst { it.id == toId }
+                if (fromIdx in indices && toIdx in indices) add(toIdx, removeAt(fromIdx))
+            }
+            onReorder(local.map { it.id })
+        },
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.manage_groups)) },
         text = {
             Column {
-                if (groups.isEmpty()) {
+                if (local.isEmpty()) {
                     Text(
                         stringResource(R.string.no_groups_yet),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    LazyColumn {
-                        items(groups, key = { it.id }) { g ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(g.name, modifier = Modifier.weight(1f))
-                                IconButton(onClick = {
-                                    renameTarget = g
-                                    renameText = g.name
-                                }) {
-                                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.rename))
-                                }
-                                IconButton(onClick = { deleteTarget = g }) {
+                    LazyColumn(state = lazyListState) {
+                        items(local, key = { it.id }) { g ->
+                            ReorderableItem(reorderState, key = g.id) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
                                     Icon(
-                                        Icons.Default.DeleteOutline,
-                                        contentDescription = stringResource(R.string.delete),
-                                        tint = MaterialTheme.colorScheme.error,
+                                        Icons.Default.DragHandle,
+                                        contentDescription = stringResource(R.string.reorder),
+                                        modifier = Modifier.draggableHandle(),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
+                                    Spacer(Modifier.size(8.dp))
+                                    Text(g.name, modifier = Modifier.weight(1f))
+                                    IconButton(onClick = {
+                                        renameTarget = g
+                                        renameText = g.name
+                                    }) {
+                                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.rename))
+                                    }
+                                    IconButton(onClick = { deleteTarget = g }) {
+                                        Icon(
+                                            Icons.Default.DeleteOutline,
+                                            contentDescription = stringResource(R.string.delete),
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
                                 }
                             }
                         }

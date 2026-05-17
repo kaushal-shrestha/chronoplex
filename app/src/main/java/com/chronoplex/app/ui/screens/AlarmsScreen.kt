@@ -212,6 +212,7 @@ fun AlarmsScreen(
             onCreate = { vm.createGroup(it) },
             onRename = { id, name -> vm.renameGroup(id, name) },
             onDelete = { vm.deleteGroup(it) },
+            onReorder = { vm.reorderGroups(it) },
             onDismiss = { manageGroupsOpen = false },
             memberCount = { gid -> alarms.count { it.groupId == gid } },
         )

@@ -104,20 +104,24 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
-                        if (stopwatches.size >= 2) {
-                            IconButton(onClick = { reorderMode = true }) {
-                                Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.reorder))
-                            }
-                        }
-                        if (groupingEnabled) {
+                        val anyMenuContent = stopwatches.size >= 2 || groupingEnabled
+                        if (anyMenuContent) {
                             IconButton(onClick = { menuOpen = true }) {
                                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.manage_groups)) },
-                                    onClick = { menuOpen = false; manageGroupsOpen = true },
-                                )
+                                if (stopwatches.size >= 2) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.reorder)) },
+                                        onClick = { menuOpen = false; reorderMode = true },
+                                    )
+                                }
+                                if (groupingEnabled) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.manage_groups)) },
+                                        onClick = { menuOpen = false; manageGroupsOpen = true },
+                                    )
+                                }
                             }
                         }
                     }
@@ -221,6 +225,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
             onCreate = { vm.createGroup(it) },
             onRename = { id, name -> vm.renameGroup(id, name) },
             onDelete = { vm.deleteGroup(it) },
+            onReorder = { vm.reorderGroups(it) },
             onDismiss = { manageGroupsOpen = false },
             memberCount = { gid -> stopwatches.count { it.groupId == gid } },
         )
