@@ -78,6 +78,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
     var menuOpen by remember { mutableStateOf(false) }
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Stopwatch?>(null) }
+    var ungroupedCollapsed by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -141,14 +142,22 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                     }
                     val ungrouped = byGroup[null].orEmpty()
                     if (ungrouped.isNotEmpty()) {
-                        item(key = "ungrouped") { UngroupedHeader(ungrouped.size) }
-                        items(ungrouped, key = { "u-${it.id}" }) { sw ->
-                            StopwatchCard(
-                                stopwatch = sw, nowMillis = now, vm = vm,
-                                groupingEnabled = true,
-                                onRename = { renameTarget = sw },
-                                onMove = { moveTarget = sw },
+                        item(key = "ungrouped") {
+                            UngroupedHeader(
+                                itemCount = ungrouped.size,
+                                collapsed = ungroupedCollapsed,
+                                onToggleCollapsed = { ungroupedCollapsed = !ungroupedCollapsed },
                             )
+                        }
+                        if (!ungroupedCollapsed) {
+                            items(ungrouped, key = { "u-${it.id}" }) { sw ->
+                                StopwatchCard(
+                                    stopwatch = sw, nowMillis = now, vm = vm,
+                                    groupingEnabled = true,
+                                    onRename = { renameTarget = sw },
+                                    onMove = { moveTarget = sw },
+                                )
+                            }
                         }
                     }
                 }
@@ -174,6 +183,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
             onRename = { id, name -> vm.renameGroup(id, name) },
             onDelete = { vm.deleteGroup(it) },
             onDismiss = { manageGroupsOpen = false },
+            memberCount = { gid -> stopwatches.count { it.groupId == gid } },
         )
     }
     moveTarget?.let { target ->
@@ -181,7 +191,10 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
             currentGroupId = target.groupId,
             groups = groups,
             onMove = { gid -> vm.moveToGroup(target.id, gid); moveTarget = null },
-            onCreateAndMove = { name -> vm.createGroup(name); moveTarget = null },
+            onCreateAndMove = { name ->
+                vm.createAndAssign(target.id, name)
+                moveTarget = null
+            },
             onDismiss = { moveTarget = null },
         )
     }

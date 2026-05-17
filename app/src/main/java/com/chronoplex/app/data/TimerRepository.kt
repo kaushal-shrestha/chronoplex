@@ -73,6 +73,14 @@ class TimerRepository(private val dao: TimerDao) {
 
     suspend fun assignToGroup(id: Long, groupId: Long?) = dao.assignToGroup(id, groupId)
 
+    suspend fun reorderItems(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id -> dao.setSortOrder(id, index.toLong()) }
+    }
+
+    suspend fun reorderGroups(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id -> dao.setGroupSortOrder(id, index.toLong()) }
+    }
+
     private fun Timer.clean(): Timer = copy(
         label = Validate.label(label),
         durationMillis = durationMillis.coerceAtLeast(0L),

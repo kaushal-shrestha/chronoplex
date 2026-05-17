@@ -60,6 +60,14 @@ class ClocksViewModel(private val container: AppContainer) : ViewModel() {
     fun toggleCollapsed(group: Group) = viewModelScope.launch {
         container.clockRepo.setCollapsed(group.id, !group.collapsed)
     }
+    fun reorderItems(ids: List<Long>) = viewModelScope.launch { container.clockRepo.reorderItems(ids) }
+    fun reorderGroups(ids: List<Long>) = viewModelScope.launch { container.clockRepo.reorderGroups(ids) }
+
+    /** Create a new group AND immediately assign [itemId] to it. */
+    fun createAndAssign(itemId: Long, name: String) = viewModelScope.launch {
+        val newId = container.clockRepo.createGroup(name)
+        container.clockRepo.assignToGroup(itemId, newId)
+    }
 }
 
 class AlarmsViewModel(private val container: AppContainer) : ViewModel() {
@@ -96,12 +104,20 @@ class AlarmsViewModel(private val container: AppContainer) : ViewModel() {
     fun toggleCollapsed(group: Group) = viewModelScope.launch {
         container.alarmRepo.setCollapsed(group.id, !group.collapsed)
     }
+    fun reorderGroups(ids: List<Long>) = viewModelScope.launch { container.alarmRepo.reorderGroups(ids) }
+    // Alarms use natural (time-of-day) ordering; we don't expose item reorder.
+
+    fun createAndAssign(itemId: Long, name: String) = viewModelScope.launch {
+        val newId = container.alarmRepo.createGroup(name)
+        container.alarmRepo.assignToGroup(itemId, newId)
+    }
 }
 
 data class ClockEditState(
     val id: Long = 0,
     val label: String = "",
     val zoneId: String = "",
+    val groupId: Long? = null,
 )
 
 class ClockEditViewModel(
@@ -110,24 +126,37 @@ class ClockEditViewModel(
 ) : ViewModel() {
     val state = MutableStateFlow(ClockEditState())
 
+    val groups: StateFlow<List<Group>> = container.clockRepo.observeGroups()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val groupingEnabled: StateFlow<Boolean> = container.settings.clocksGroupingEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     init {
         val id = handle.get<Long>("id") ?: 0L
         if (id > 0L) viewModelScope.launch {
             container.clockRepo.getAll().firstOrNull { it.id == id }?.let {
-                state.value = ClockEditState(id = it.id, label = it.label, zoneId = it.zoneId)
+                state.value = ClockEditState(id = it.id, label = it.label, zoneId = it.zoneId, groupId = it.groupId)
             }
         }
     }
 
     fun setLabel(v: String) = state.update { it.copy(label = v) }
     fun setZone(v: String) = state.update { it.copy(zoneId = v) }
+    fun setGroupId(g: Long?) = state.update { it.copy(groupId = g) }
+
+    /** Create a new group and select it for the in-progress edit. */
+    fun createAndSelectGroup(name: String) = viewModelScope.launch {
+        val newId = container.clockRepo.createGroup(name)
+        state.update { it.copy(groupId = newId) }
+    }
 
     fun save(onDone: () -> Unit) = viewModelScope.launch {
         val s = state.value
         if (s.zoneId.isBlank()) return@launch
         val finalLabel = s.label.ifBlank { defaultLabelFor(s.zoneId) }
         container.clockRepo.upsert(
-            Clock(id = s.id, label = finalLabel, zoneId = s.zoneId)
+            Clock(id = s.id, label = finalLabel, zoneId = s.zoneId, groupId = s.groupId)
         )
         onDone()
     }
@@ -140,7 +169,8 @@ data class AlarmEditState(
     val id: Long = 0,
     val label: String = "",
     val zoneId: String = "",
-    val hour: Int = 7,
+    /** Defaults to 00:00 (12:00 AM) — matches Google Clock's new-alarm default. */
+    val hour: Int = 0,
     val minute: Int = 0,
     val daysMask: Int = 0,
     val soundEnabled: Boolean = true,
@@ -148,6 +178,7 @@ data class AlarmEditState(
     val enabled: Boolean = true,
     /** Per-edit override; initialized from settings default. */
     val zoneSource: AlarmZoneSource = AlarmZoneSource.ALL_ZONES,
+    val groupId: Long? = null,
 )
 
 class AlarmEditViewModel(
@@ -155,6 +186,12 @@ class AlarmEditViewModel(
     private val handle: SavedStateHandle,
 ) : ViewModel() {
     val state = MutableStateFlow(AlarmEditState())
+
+    val groups: StateFlow<List<Group>> = container.alarmRepo.observeGroups()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val groupingEnabled: StateFlow<Boolean> = container.settings.alarmsGroupingEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     init {
         val id = handle.get<Long>("id") ?: 0L
@@ -176,6 +213,7 @@ class AlarmEditViewModel(
                         soundEnabled = a.soundEnabled,
                         vibrationEnabled = a.vibrationEnabled,
                         enabled = a.enabled,
+                        groupId = a.groupId,
                     )
                 }
             }
@@ -185,6 +223,12 @@ class AlarmEditViewModel(
     }
 
     fun setZoneSource(source: AlarmZoneSource) = state.update { it.copy(zoneSource = source) }
+    fun setGroupId(g: Long?) = state.update { it.copy(groupId = g) }
+
+    fun createAndSelectGroup(name: String) = viewModelScope.launch {
+        val newId = container.alarmRepo.createGroup(name)
+        state.update { it.copy(groupId = newId) }
+    }
 
     fun setLabel(v: String) = state.update { it.copy(label = v) }
     fun setZone(v: String) = state.update { it.copy(zoneId = v) }
@@ -210,6 +254,7 @@ class AlarmEditViewModel(
             soundEnabled = s.soundEnabled,
             vibrationEnabled = s.vibrationEnabled,
             enabled = true,
+            groupId = s.groupId,
         )
         val newId = container.alarmRepo.upsert(alarm)
         val saved = alarm.copy(id = if (alarm.id == 0L) newId else alarm.id)
@@ -294,6 +339,13 @@ class TimersViewModel(private val container: AppContainer) : ViewModel() {
     fun toggleCollapsed(group: Group) = viewModelScope.launch {
         container.timerRepo.setCollapsed(group.id, !group.collapsed)
     }
+    fun reorderItems(ids: List<Long>) = viewModelScope.launch { container.timerRepo.reorderItems(ids) }
+    fun reorderGroups(ids: List<Long>) = viewModelScope.launch { container.timerRepo.reorderGroups(ids) }
+
+    fun createAndAssign(itemId: Long, name: String) = viewModelScope.launch {
+        val newId = container.timerRepo.createGroup(name)
+        container.timerRepo.assignToGroup(itemId, newId)
+    }
 }
 
 data class TimerEditState(
@@ -303,6 +355,7 @@ data class TimerEditState(
     val minutes: Int = 5,
     val seconds: Int = 0,
     val focusedField: DurationField = DurationField.MINUTES,
+    val groupId: Long? = null,
 ) {
     val totalMillis: Long
         get() = (hours.toLong() * 3600 + minutes.toLong() * 60 + seconds.toLong()) * 1000L
@@ -317,6 +370,12 @@ class TimerEditViewModel(
 ) : ViewModel() {
     val state = MutableStateFlow(TimerEditState())
 
+    val groups: StateFlow<List<Group>> = container.timerRepo.observeGroups()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val groupingEnabled: StateFlow<Boolean> = container.settings.timersGroupingEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     init {
         val id = handle.get<Long>("id") ?: 0L
         if (id > 0L) viewModelScope.launch {
@@ -329,6 +388,7 @@ class TimerEditViewModel(
                         hours = (total / 3600).toInt(),
                         minutes = ((total % 3600) / 60).toInt(),
                         seconds = (total % 60).toInt(),
+                        groupId = t.groupId,
                     )
                 }
             }
@@ -337,6 +397,12 @@ class TimerEditViewModel(
 
     fun setLabel(v: String) = state.update { it.copy(label = v) }
     fun setFocus(f: DurationField) = state.update { it.copy(focusedField = f) }
+    fun setGroupId(g: Long?) = state.update { it.copy(groupId = g) }
+
+    fun createAndSelectGroup(name: String) = viewModelScope.launch {
+        val newId = container.timerRepo.createGroup(name)
+        state.update { it.copy(groupId = newId) }
+    }
 
     /** Append a digit to the currently-focused field (shift-left within 2 digits). */
     fun typeDigit(digit: Int) {
@@ -391,6 +457,7 @@ class TimerEditViewModel(
             endsAtMillis = null,
             pausedRemainingMillis = null,
             sortOrder = System.currentTimeMillis(),
+            groupId = s.groupId,
         )
         container.timerRepo.upsert(timer)
         onDone()
@@ -429,6 +496,13 @@ class StopwatchesViewModel(private val container: AppContainer) : ViewModel() {
     fun deleteGroup(id: Long) = viewModelScope.launch { container.stopwatchRepo.deleteGroup(id) }
     fun toggleCollapsed(group: Group) = viewModelScope.launch {
         container.stopwatchRepo.setCollapsed(group.id, !group.collapsed)
+    }
+    fun reorderItems(ids: List<Long>) = viewModelScope.launch { container.stopwatchRepo.reorderItems(ids) }
+    fun reorderGroups(ids: List<Long>) = viewModelScope.launch { container.stopwatchRepo.reorderGroups(ids) }
+
+    fun createAndAssign(itemId: Long, name: String) = viewModelScope.launch {
+        val newId = container.stopwatchRepo.createGroup(name)
+        container.stopwatchRepo.assignToGroup(itemId, newId)
     }
 
     fun addStopwatch() = viewModelScope.launch {

@@ -22,11 +22,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -37,6 +39,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +61,9 @@ fun TimerEditScreen(
     onClose: () -> Unit,
 ) {
     val s by vm.state.collectAsState()
+    val groups by vm.groups.collectAsState()
+    val groupingEnabled by vm.groupingEnabled.collectAsState()
+    var groupPickerOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -144,7 +152,41 @@ fun TimerEditScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            if (groupingEnabled) {
+                item {
+                    val currentGroupName = groups.firstOrNull { it.id == s.groupId }?.name
+                        ?: stringResource(R.string.ungrouped)
+                    OutlinedCard(
+                        modifier = Modifier.fillMaxWidth().clickable { groupPickerOpen = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(stringResource(R.string.move_to_group), style = MaterialTheme.typography.labelMedium)
+                                Text(currentGroupName, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    if (groupPickerOpen) {
+        GroupPickerDialog(
+            currentGroupId = s.groupId,
+            groups = groups,
+            onSelect = { vm.setGroupId(it); groupPickerOpen = false },
+            onCreateAndSelect = { name -> vm.createAndSelectGroup(name); groupPickerOpen = false },
+            onDismiss = { groupPickerOpen = false },
+        )
     }
 }
 

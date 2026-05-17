@@ -67,6 +67,7 @@ fun TimersScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Timer?>(null) }
+    var ungroupedCollapsed by remember { mutableStateOf(false) }
 
     // Single per-screen tick drives every running timer's countdown.
     val now by produceState(initialValue = System.currentTimeMillis()) {
@@ -156,23 +157,31 @@ fun TimersScreen(
                     }
                     val ungrouped = byGroup[null].orEmpty()
                     if (ungrouped.isNotEmpty()) {
-                        item(key = "ungrouped") { UngroupedHeader(ungrouped.size) }
-                        items(ungrouped, key = { "u-${it.id}" }) { timer ->
-                            TimerRow(
-                                timer = timer,
-                                nowMillis = now,
-                                groupingEnabled = true,
-                                onClick = { onEdit(timer) },
-                                onPrimaryAction = {
-                                    when (timer.state) {
-                                        TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
-                                        TimerState.RUNNING -> vm.pause(timer)
-                                    }
-                                },
-                                onReset = { vm.reset(timer) },
-                                onDelete = { vm.delete(timer) },
-                                onMove = { moveTarget = timer },
+                        item(key = "ungrouped") {
+                            UngroupedHeader(
+                                itemCount = ungrouped.size,
+                                collapsed = ungroupedCollapsed,
+                                onToggleCollapsed = { ungroupedCollapsed = !ungroupedCollapsed },
                             )
+                        }
+                        if (!ungroupedCollapsed) {
+                            items(ungrouped, key = { "u-${it.id}" }) { timer ->
+                                TimerRow(
+                                    timer = timer,
+                                    nowMillis = now,
+                                    groupingEnabled = true,
+                                    onClick = { onEdit(timer) },
+                                    onPrimaryAction = {
+                                        when (timer.state) {
+                                            TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
+                                            TimerState.RUNNING -> vm.pause(timer)
+                                        }
+                                    },
+                                    onReset = { vm.reset(timer) },
+                                    onDelete = { vm.delete(timer) },
+                                    onMove = { moveTarget = timer },
+                                )
+                            }
                         }
                     }
                 }
@@ -187,6 +196,7 @@ fun TimersScreen(
             onRename = { id, name -> vm.renameGroup(id, name) },
             onDelete = { vm.deleteGroup(it) },
             onDismiss = { manageGroupsOpen = false },
+            memberCount = { gid -> timers.count { it.groupId == gid } },
         )
     }
     moveTarget?.let { target ->
@@ -194,7 +204,10 @@ fun TimersScreen(
             currentGroupId = target.groupId,
             groups = groups,
             onMove = { gid -> vm.moveToGroup(target.id, gid); moveTarget = null },
-            onCreateAndMove = { name -> vm.createGroup(name); moveTarget = null },
+            onCreateAndMove = { name ->
+                vm.createAndAssign(target.id, name)
+                moveTarget = null
+            },
             onDismiss = { moveTarget = null },
         )
     }

@@ -51,6 +51,12 @@ interface ClockDao {
 
     @Query("DELETE FROM clock_groups WHERE id = :id")
     suspend fun deleteGroupById(id: Long)
+
+    @Query("UPDATE clocks SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun setSortOrder(id: Long, sortOrder: Long)
+
+    @Query("UPDATE clock_groups SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun setGroupSortOrder(id: Long, sortOrder: Long)
 }
 
 @Dao
@@ -96,6 +102,12 @@ interface AlarmDao {
 
     @Query("DELETE FROM alarm_groups WHERE id = :id")
     suspend fun deleteGroupById(id: Long)
+
+    // Alarms have a synthetic ordering (hour, minute, id) in observeAll(); for explicit
+    // reorder we'd need to add a sortOrder column. For now reorder of alarms is unsupported.
+
+    @Query("UPDATE alarm_groups SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun setGroupSortOrder(id: Long, sortOrder: Long)
 }
 
 @Dao
@@ -138,6 +150,12 @@ interface TimerDao {
 
     @Query("DELETE FROM timer_groups WHERE id = :id")
     suspend fun deleteGroupById(id: Long)
+
+    @Query("UPDATE timers SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun setSortOrder(id: Long, sortOrder: Long)
+
+    @Query("UPDATE timer_groups SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun setGroupSortOrder(id: Long, sortOrder: Long)
 }
 
 @Dao
@@ -189,4 +207,10 @@ interface StopwatchDao {
 
     @Query("DELETE FROM stopwatch_groups WHERE id = :id")
     suspend fun deleteGroupById(id: Long)
+
+    @Query("UPDATE stopwatches SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun setSortOrder(id: Long, sortOrder: Long)
+
+    @Query("UPDATE stopwatch_groups SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun setGroupSortOrder(id: Long, sortOrder: Long)
 }

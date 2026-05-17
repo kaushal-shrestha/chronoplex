@@ -133,6 +133,7 @@ fun ClocksScreen(
             onRename = { id, name -> vm.renameGroup(id, name) },
             onDelete = { vm.deleteGroup(it) },
             onDismiss = { manageGroupsOpen = false },
+            memberCount = { gid -> clocks.count { it.groupId == gid } },
         )
     }
     moveTarget?.let { target ->
@@ -141,9 +142,7 @@ fun ClocksScreen(
             groups = groups,
             onMove = { gid -> vm.moveToGroup(target.id, gid); moveTarget = null },
             onCreateAndMove = { name ->
-                // For simplicity: create the group; the user can re-open the dialog
-                // and pick it. Avoids exposing the new id synchronously.
-                vm.createGroup(name)
+                vm.createAndAssign(target.id, name)
                 moveTarget = null
             },
             onDismiss = { moveTarget = null },
@@ -200,6 +199,7 @@ private fun ClocksList(
     onToggleCollapsed: (Group) -> Unit,
 ) {
     var now by remember { mutableStateOf(ZonedDateTime.now()) }
+    var ungroupedCollapsed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         while (true) {
             now = ZonedDateTime.now()
@@ -248,16 +248,24 @@ private fun ClocksList(
             }
             val ungrouped = byGroup[null].orEmpty()
             if (ungrouped.isNotEmpty()) {
-                item(key = "ungrouped") { UngroupedHeader(ungrouped.size) }
-                items(ungrouped, key = { "u-${it.id}" }) { clock ->
-                    ClockRow(
-                        clock = clock,
-                        nowEpochMillis = now.toInstant().toEpochMilli(),
-                        groupingEnabled = true,
-                        onClick = { onEdit(clock) },
-                        onDelete = { onDelete(clock) },
-                        onMove = { onMove(clock) },
+                item(key = "ungrouped") {
+                    UngroupedHeader(
+                        itemCount = ungrouped.size,
+                        collapsed = ungroupedCollapsed,
+                        onToggleCollapsed = { ungroupedCollapsed = !ungroupedCollapsed },
                     )
+                }
+                if (!ungroupedCollapsed) {
+                    items(ungrouped, key = { "u-${it.id}" }) { clock ->
+                        ClockRow(
+                            clock = clock,
+                            nowEpochMillis = now.toInstant().toEpochMilli(),
+                            groupingEnabled = true,
+                            onClick = { onEdit(clock) },
+                            onDelete = { onDelete(clock) },
+                            onMove = { onMove(clock) },
+                        )
+                    }
                 }
             }
         }
