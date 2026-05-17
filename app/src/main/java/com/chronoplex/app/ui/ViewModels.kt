@@ -380,18 +380,17 @@ class TimersViewModel(private val container: AppContainer) : ViewModel() {
 data class TimerEditState(
     val id: Long = 0,
     val label: String = "",
-    val hours: Int = 0,
-    val minutes: Int = 5,
-    val seconds: Int = 0,
-    val focusedField: DurationField = DurationField.MINUTES,
+    /** 6-digit HHMMSS buffer; new digits shift in from the right. Range 0..999999. */
+    val digits: Int = 0,
     val groupId: Long? = null,
 ) {
+    val seconds: Int get() = digits % 100
+    val minutes: Int get() = (digits / 100) % 100
+    val hours: Int get() = digits / 10000
     val totalMillis: Long
         get() = (hours.toLong() * 3600 + minutes.toLong() * 60 + seconds.toLong()) * 1000L
     val isValid: Boolean get() = totalMillis > 0L
 }
-
-enum class DurationField { HOURS, MINUTES, SECONDS }
 
 class TimerEditViewModel(
     private val container: AppContainer,
@@ -410,20 +409,16 @@ class TimerEditViewModel(
             return@launch
         }
         container.timerRepo.getById(id)?.let { t ->
-            val total = t.durationMillis / 1000L
             state.value = TimerEditState(
                 id = t.id,
                 label = t.label,
-                hours = (total / 3600).toInt(),
-                minutes = ((total % 3600) / 60).toInt(),
-                seconds = (total % 60).toInt(),
+                digits = millisToDigits(t.durationMillis),
                 groupId = t.groupId,
             )
         }
     }
 
     fun setLabel(v: String) = state.update { it.copy(label = v) }
-    fun setFocus(f: DurationField) = state.update { it.copy(focusedField = f) }
     fun setGroupId(g: Long?) = state.update { it.copy(groupId = g) }
 
     fun createAndSelectGroup(name: String) = viewModelScope.launch {
@@ -431,46 +426,21 @@ class TimerEditViewModel(
         state.update { it.copy(groupId = newId) }
     }
 
-    /** Append a digit to the currently-focused field (shift-left within 2 digits). */
+    /** Shift digits left and append. Caps at 6 digits (99h 99m 99s). */
     fun typeDigit(digit: Int) {
         if (digit !in 0..9) return
         state.update { s ->
-            val newValue = ((current(s) % 10) * 10 + digit).coerceIn(0, 99)
-            val maxed = newValue >= 10
-            val next = s.copy(
-                hours = if (s.focusedField == DurationField.HOURS) newValue else s.hours,
-                minutes = if (s.focusedField == DurationField.MINUTES) newValue else s.minutes,
-                seconds = if (s.focusedField == DurationField.SECONDS) newValue else s.seconds,
-            )
-            // Auto-advance focus once a field has been filled to 2 digits.
-            if (maxed) next.copy(focusedField = advance(s.focusedField)) else next
+            val next = s.digits * 10 + digit
+            if (next > 999_999) s else s.copy(digits = next)
         }
     }
 
-    fun backspace() = state.update { s ->
-        val newValue = current(s) / 10
-        s.copy(
-            hours = if (s.focusedField == DurationField.HOURS) newValue else s.hours,
-            minutes = if (s.focusedField == DurationField.MINUTES) newValue else s.minutes,
-            seconds = if (s.focusedField == DurationField.SECONDS) newValue else s.seconds,
-        )
-    }
+    fun backspace() = state.update { it.copy(digits = it.digits / 10) }
 
-    fun clearField() = state.update { s ->
-        s.copy(
-            hours = if (s.focusedField == DurationField.HOURS) 0 else s.hours,
-            minutes = if (s.focusedField == DurationField.MINUTES) 0 else s.minutes,
-            seconds = if (s.focusedField == DurationField.SECONDS) 0 else s.seconds,
-        )
-    }
+    fun clearField() = state.update { it.copy(digits = 0) }
 
-    fun setPresetMillis(millis: Long) = state.update { s ->
-        val total = millis / 1000L
-        s.copy(
-            hours = (total / 3600).toInt().coerceAtMost(99),
-            minutes = ((total % 3600) / 60).toInt(),
-            seconds = (total % 60).toInt(),
-        )
+    fun setPresetMillis(millis: Long) = state.update {
+        it.copy(digits = millisToDigits(millis))
     }
 
     fun save(onDone: () -> Unit) = viewModelScope.launch {
@@ -490,16 +460,12 @@ class TimerEditViewModel(
         onDone()
     }
 
-    private fun current(s: TimerEditState): Int = when (s.focusedField) {
-        DurationField.HOURS -> s.hours
-        DurationField.MINUTES -> s.minutes
-        DurationField.SECONDS -> s.seconds
-    }
-
-    private fun advance(f: DurationField): DurationField = when (f) {
-        DurationField.HOURS -> DurationField.MINUTES
-        DurationField.MINUTES -> DurationField.SECONDS
-        DurationField.SECONDS -> DurationField.SECONDS
+    private fun millisToDigits(millis: Long): Int {
+        val total = millis / 1000L
+        val h = (total / 3600).toInt().coerceAtMost(99)
+        val m = ((total % 3600) / 60).toInt()
+        val sec = (total % 60).toInt()
+        return h * 10_000 + m * 100 + sec
     }
 }
 

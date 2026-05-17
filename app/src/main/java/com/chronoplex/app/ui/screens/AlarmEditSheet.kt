@@ -74,6 +74,7 @@ import kotlinx.coroutines.launch
 fun AlarmEditSheet(
     vm: AlarmEditViewModel,
     onPickZone: (restrictToAdded: Boolean) -> Unit,
+    onDelete: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val s by vm.state.collectAsState()
@@ -123,6 +124,21 @@ fun AlarmEditSheet(
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
+                if (s.id != 0L) {
+                    TextButton(onClick = rememberTapFeedback {
+                        val id = s.id
+                        scope.launch {
+                            sheetState.hide()
+                            onDismiss()
+                            onDelete(id)
+                        }
+                    }) {
+                        Text(
+                            stringResource(R.string.delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
                 TextButton(
                     onClick = rememberTapFeedback { vm.save { dismissAnimated() } },
                     enabled = s.zoneId.isNotBlank(),

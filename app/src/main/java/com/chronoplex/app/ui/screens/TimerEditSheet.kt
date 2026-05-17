@@ -1,7 +1,6 @@
 package com.chronoplex.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -43,13 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chronoplex.app.R
-import com.chronoplex.app.ui.DurationField
 import com.chronoplex.app.ui.TimerEditViewModel
 import com.chronoplex.app.ui.rememberTapFeedback
 import kotlinx.coroutines.launch
@@ -58,6 +56,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun TimerEditSheet(
     vm: TimerEditViewModel,
+    onDelete: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val s by vm.state.collectAsState()
@@ -98,6 +97,21 @@ fun TimerEditSheet(
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )
+                if (s.id != 0L) {
+                    TextButton(onClick = rememberTapFeedback {
+                        val id = s.id
+                        scope.launch {
+                            sheetState.hide()
+                            onDismiss()
+                            onDelete(id)
+                        }
+                    }) {
+                        Text(
+                            stringResource(R.string.delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
                 TextButton(
                     onClick = rememberTapFeedback { vm.save { dismissAnimated() } },
                     enabled = s.isValid,
@@ -126,36 +140,14 @@ fun TimerEditSheet(
                     }
                 }
 
-                Column {
-                    Text(stringResource(R.string.duration), style = MaterialTheme.typography.labelLarge)
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        DurationCell(
-                            value = s.hours,
-                            unit = stringResource(R.string.hours_short),
-                            focused = s.focusedField == DurationField.HOURS,
-                            modifier = Modifier.weight(1f),
-                            onClick = { vm.setFocus(DurationField.HOURS) },
-                        )
-                        DurationCell(
-                            value = s.minutes,
-                            unit = stringResource(R.string.minutes_short),
-                            focused = s.focusedField == DurationField.MINUTES,
-                            modifier = Modifier.weight(1f),
-                            onClick = { vm.setFocus(DurationField.MINUTES) },
-                        )
-                        DurationCell(
-                            value = s.seconds,
-                            unit = stringResource(R.string.seconds_short),
-                            focused = s.focusedField == DurationField.SECONDS,
-                            modifier = Modifier.weight(1f),
-                            onClick = { vm.setFocus(DurationField.SECONDS) },
-                        )
-                    }
-                }
+                DurationReadout(
+                    hours = s.hours,
+                    minutes = s.minutes,
+                    seconds = s.seconds,
+                    hoursUnit = stringResource(R.string.hours_short),
+                    minutesUnit = stringResource(R.string.minutes_short),
+                    secondsUnit = stringResource(R.string.seconds_short),
+                )
 
                 Keypad(
                     onDigit = vm::typeDigit,
@@ -221,35 +213,47 @@ private fun PresetChip(labelRes: Int, millis: Long, vm: TimerEditViewModel) {
 }
 
 @Composable
-private fun DurationCell(
-    value: Int,
-    unit: String,
-    focused: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
+private fun DurationReadout(
+    hours: Int,
+    minutes: Int,
+    seconds: Int,
+    hoursUnit: String,
+    minutesUnit: String,
+    secondsUnit: String,
 ) {
-    val borderColor = if (focused) MaterialTheme.colorScheme.primary
-                      else MaterialTheme.colorScheme.outline
-    val shape = RoundedCornerShape(12.dp)
-    Column(
-        modifier = modifier
-            .clip(shape)
-            .border(if (focused) 2.dp else 1.dp, borderColor, shape)
-            .background(if (focused) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent)
-            .tappable(onClick = onClick)
-            .padding(vertical = 14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val hLit = hours > 0
+    val mLit = hLit || minutes > 0
+    val sLit = mLit || seconds > 0
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.Bottom,
     ) {
+        TimeSegment(value = hours, unit = hoursUnit, lit = hLit)
+        Spacer(Modifier.width(8.dp))
+        TimeSegment(value = minutes, unit = minutesUnit, lit = mLit)
+        Spacer(Modifier.width(8.dp))
+        TimeSegment(value = seconds, unit = secondsUnit, lit = sLit)
+    }
+}
+
+@Composable
+private fun TimeSegment(value: Int, unit: String, lit: Boolean) {
+    val color = if (lit) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.outline
+    Row(verticalAlignment = Alignment.Bottom) {
         Text(
             "%02d".format(value),
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 52.sp,
+            fontWeight = FontWeight.Light,
+            color = color,
         )
         Text(
             unit,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Light,
+            color = color,
+            modifier = Modifier.padding(start = 2.dp, bottom = 10.dp),
         )
     }
 }

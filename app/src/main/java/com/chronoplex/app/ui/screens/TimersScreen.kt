@@ -337,7 +337,13 @@ fun TimersScreen(
     }
 
     if (editSheetOpen) {
-        TimerEditSheet(vm = editVm, onDismiss = { editSheetOpen = false })
+        TimerEditSheet(
+            vm = editVm,
+            onDelete = { id ->
+                timers.firstOrNull { it.id == id }?.let { handleDelete(it) }
+            },
+            onDismiss = { editSheetOpen = false },
+        )
     }
 }
 

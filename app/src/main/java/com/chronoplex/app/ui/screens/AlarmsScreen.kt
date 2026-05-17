@@ -322,6 +322,9 @@ fun AlarmsScreen(
                 editSheetOpen = false
                 zonePickerRestrict = restrict
             },
+            onDelete = { id ->
+                alarms.firstOrNull { it.id == id }?.let { handleDelete(it) }
+            },
             onDismiss = { editSheetOpen = false },
         )
     }
