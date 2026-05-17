@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PublicOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -42,7 +43,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import android.text.format.DateFormat
@@ -78,6 +81,9 @@ fun AlarmEditScreen(
     }
 
     val s by vm.state.collectAsState()
+    val groups by vm.groups.collectAsState()
+    val groupingEnabled by vm.groupingEnabled.collectAsState()
+    var groupPickerOpen by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
     val firstDay by (context.applicationContext as ChronoplexApp).container.settings.firstDayOfWeek
@@ -231,7 +237,41 @@ fun AlarmEditScreen(
                     onCheckedChange = vm::setVibration,
                 )
             }
+            if (groupingEnabled) {
+                item {
+                    val currentGroupName = groups.firstOrNull { it.id == s.groupId }?.name
+                        ?: stringResource(R.string.ungrouped)
+                    OutlinedCard(
+                        modifier = Modifier.fillMaxWidth().clickable { groupPickerOpen = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(stringResource(R.string.move_to_group), style = MaterialTheme.typography.labelMedium)
+                                Text(currentGroupName, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    if (groupPickerOpen) {
+        GroupPickerDialog(
+            currentGroupId = s.groupId,
+            groups = groups,
+            onSelect = { vm.setGroupId(it); groupPickerOpen = false },
+            onCreateAndSelect = { name -> vm.createAndSelectGroup(name); groupPickerOpen = false },
+            onDismiss = { groupPickerOpen = false },
+        )
     }
 }
 

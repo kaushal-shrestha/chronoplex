@@ -128,6 +128,9 @@ private fun GroupOptionRow(label: String, selected: Boolean, onClick: () -> Unit
 
 /**
  * List + create + rename + delete dialog for the groups of a single tab type.
+ *
+ * Optionally takes a [memberCount] lookup so the delete confirmation can say how
+ * many items will become Ungrouped. If null, a generic message is used.
  */
 @Composable
 fun ManageGroupsDialog(
@@ -136,10 +139,12 @@ fun ManageGroupsDialog(
     onRename: (Long, String) -> Unit,
     onDelete: (Long) -> Unit,
     onDismiss: () -> Unit,
+    memberCount: ((Long) -> Int)? = null,
 ) {
     var newName by remember { mutableStateOf("") }
     var renameTarget by remember { mutableStateOf<Group?>(null) }
     var renameText by remember { mutableStateOf("") }
+    var deleteTarget by remember { mutableStateOf<Group?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -166,7 +171,7 @@ fun ManageGroupsDialog(
                                 }) {
                                     Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.rename))
                                 }
-                                IconButton(onClick = { onDelete(g.id) }) {
+                                IconButton(onClick = { deleteTarget = g }) {
                                     Icon(
                                         Icons.Default.DeleteOutline,
                                         contentDescription = stringResource(R.string.delete),
@@ -228,6 +233,36 @@ fun ManageGroupsDialog(
             },
         )
     }
+
+    deleteTarget?.let { target ->
+        val count = memberCount?.invoke(target.id)
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text(stringResource(R.string.delete_group)) },
+            text = {
+                Text(
+                    if (count != null)
+                        stringResource(R.string.delete_group_with_count, target.name, count)
+                    else
+                        stringResource(R.string.delete_group_message, target.name)
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(target.id)
+                    deleteTarget = null
+                }) {
+                    Text(
+                        stringResource(R.string.delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
 }
 
 /** Collapsible header row for a named group. */
@@ -264,14 +299,22 @@ fun GroupHeader(
     }
 }
 
-/** Non-interactive header for items that don't belong to any group. */
+/** Collapsible header for items that don't belong to any group. */
 @Composable
-fun UngroupedHeader(itemCount: Int) {
+fun UngroupedHeader(itemCount: Int, collapsed: Boolean, onToggleCollapsed: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggleCollapsed)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        Icon(
+            if (collapsed) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Icon(
             Icons.Outlined.FolderOff,
             contentDescription = null,
@@ -289,4 +332,76 @@ fun UngroupedHeader(itemCount: Int) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+/**
+ * Group picker used by the per-item editor screens. Includes an inline
+ * "+ New group" affordance — submitting creates the group and immediately
+ * selects it for the in-progress edit (via [onCreateAndSelect]).
+ */
+@Composable
+fun GroupPickerDialog(
+    currentGroupId: Long?,
+    groups: List<Group>,
+    onSelect: (Long?) -> Unit,
+    onCreateAndSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var creating by remember { mutableStateOf(false) }
+    var newGroupName by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.move_to_group)) },
+        text = {
+            Column {
+                GroupOptionRow(
+                    label = stringResource(R.string.ungrouped),
+                    selected = currentGroupId == null,
+                    onClick = { onSelect(null) },
+                )
+                groups.forEach { g ->
+                    GroupOptionRow(
+                        label = g.name,
+                        selected = currentGroupId == g.id,
+                        onClick = { onSelect(g.id) },
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                if (creating) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = newGroupName,
+                            onValueChange = { newGroupName = it },
+                            label = { Text(stringResource(R.string.new_group_name)) },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(
+                            onClick = {
+                                if (newGroupName.isNotBlank()) {
+                                    onCreateAndSelect(newGroupName.trim())
+                                    creating = false
+                                    newGroupName = ""
+                                }
+                            },
+                            enabled = newGroupName.isNotBlank(),
+                        ) { Icon(Icons.Default.Check, contentDescription = stringResource(R.string.save)) }
+                        IconButton(onClick = { creating = false; newGroupName = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                        }
+                    }
+                } else {
+                    TextButton(onClick = { creating = true }) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(Modifier.size(4.dp))
+                        Text(stringResource(R.string.new_group))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
+        },
+    )
 }

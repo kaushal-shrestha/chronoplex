@@ -91,6 +91,14 @@ class StopwatchRepository(private val dao: StopwatchDao) {
 
     suspend fun assignToGroup(id: Long, groupId: Long?) = dao.assignToGroup(id, groupId)
 
+    suspend fun reorderItems(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id -> dao.setSortOrder(id, index.toLong()) }
+    }
+
+    suspend fun reorderGroups(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id -> dao.setGroupSortOrder(id, index.toLong()) }
+    }
+
     private fun Stopwatch.clean(): Stopwatch = copy(
         label = Validate.label(label),
         accumulatedMillis = accumulatedMillis.coerceAtLeast(0L),

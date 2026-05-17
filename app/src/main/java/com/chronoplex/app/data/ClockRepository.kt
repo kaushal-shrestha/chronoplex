@@ -56,6 +56,15 @@ class ClockRepository(private val dao: ClockDao) {
 
     suspend fun assignToGroup(id: Long, groupId: Long?) = dao.assignToGroup(id, groupId)
 
+    /** Reassign sortOrder of [orderedIds] to 0, 1, 2, … in the given order. */
+    suspend fun reorderItems(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id -> dao.setSortOrder(id, index.toLong()) }
+    }
+
+    suspend fun reorderGroups(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id -> dao.setGroupSortOrder(id, index.toLong()) }
+    }
+
     private fun Clock.clean(): Clock = copy(
         label = Validate.label(label),
         zoneId = Validate.zoneId(zoneId),

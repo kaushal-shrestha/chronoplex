@@ -85,6 +85,7 @@ fun AlarmsScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Alarm?>(null) }
+    var ungroupedCollapsed by remember { mutableStateOf(false) }
 
     // Re-check permissions whenever we come back to the foreground — e.g. after the
     // user toggles a permission in system settings and returns.
@@ -167,16 +168,24 @@ fun AlarmsScreen(
                     }
                     val ungrouped = byGroup[null].orEmpty()
                     if (ungrouped.isNotEmpty()) {
-                        item(key = "ungrouped") { UngroupedHeader(ungrouped.size) }
-                        items(ungrouped, key = { "u-${it.id}" }) { alarm ->
-                            AlarmRow(
-                                alarm = alarm,
-                                groupingEnabled = true,
-                                onClick = { onEdit(alarm) },
-                                onToggle = { vm.toggleEnabled(alarm) },
-                                onDelete = { vm.delete(alarm) },
-                                onMove = { moveTarget = alarm },
+                        item(key = "ungrouped") {
+                            UngroupedHeader(
+                                itemCount = ungrouped.size,
+                                collapsed = ungroupedCollapsed,
+                                onToggleCollapsed = { ungroupedCollapsed = !ungroupedCollapsed },
                             )
+                        }
+                        if (!ungroupedCollapsed) {
+                            items(ungrouped, key = { "u-${it.id}" }) { alarm ->
+                                AlarmRow(
+                                    alarm = alarm,
+                                    groupingEnabled = true,
+                                    onClick = { onEdit(alarm) },
+                                    onToggle = { vm.toggleEnabled(alarm) },
+                                    onDelete = { vm.delete(alarm) },
+                                    onMove = { moveTarget = alarm },
+                                )
+                            }
                         }
                     }
                 }
@@ -204,6 +213,7 @@ fun AlarmsScreen(
             onRename = { id, name -> vm.renameGroup(id, name) },
             onDelete = { vm.deleteGroup(it) },
             onDismiss = { manageGroupsOpen = false },
+            memberCount = { gid -> alarms.count { it.groupId == gid } },
         )
     }
     moveTarget?.let { target ->
@@ -211,7 +221,10 @@ fun AlarmsScreen(
             currentGroupId = target.groupId,
             groups = groups,
             onMove = { gid -> vm.moveToGroup(target.id, gid); moveTarget = null },
-            onCreateAndMove = { name -> vm.createGroup(name); moveTarget = null },
+            onCreateAndMove = { name ->
+                vm.createAndAssign(target.id, name)
+                moveTarget = null
+            },
             onDismiss = { moveTarget = null },
         )
     }

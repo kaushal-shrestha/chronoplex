@@ -61,6 +61,11 @@ class AlarmRepository(private val dao: AlarmDao) {
 
     suspend fun assignToGroup(id: Long, groupId: Long?) = dao.assignToGroup(id, groupId)
 
+    /** Alarms use (hour, minute, id) for natural sort; only groups can be reordered. */
+    suspend fun reorderGroups(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id -> dao.setGroupSortOrder(id, index.toLong()) }
+    }
+
     /** Persist snooze state without re-routing through the rest of upsert's bookkeeping. */
     suspend fun setSnoozeUntil(id: Long, snoozeUntilMillis: Long?) {
         val existing = dao.getById(id) ?: return
