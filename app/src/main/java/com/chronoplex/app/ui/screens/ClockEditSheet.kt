@@ -1,6 +1,6 @@
 package com.chronoplex.app.ui.screens
 
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.chronoplex.app.R
 import com.chronoplex.app.ui.ClockEditViewModel
+import com.chronoplex.app.ui.rememberTapFeedback
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +78,7 @@ fun ClockEditSheet(
                     .padding(start = 4.dp, end = 12.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = ::dismissAnimated) {
+                IconButton(onClick = rememberTapFeedback(::dismissAnimated)) {
                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                 }
                 Text(
@@ -86,7 +87,7 @@ fun ClockEditSheet(
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(
-                    onClick = { vm.save { dismissAnimated() } },
+                    onClick = rememberTapFeedback { vm.save { dismissAnimated() } },
                     enabled = s.zoneId.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.save))
@@ -97,7 +98,7 @@ fun ClockEditSheet(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                OutlinedCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onPickZone)) {
+                OutlinedCard(modifier = Modifier.fillMaxWidth().tappable(onClick = onPickZone)) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -130,7 +131,7 @@ fun ClockEditSheet(
                 if (groupingEnabled) {
                     val currentGroupName = groups.firstOrNull { it.id == s.groupId }?.name
                         ?: stringResource(R.string.ungrouped)
-                    OutlinedCard(modifier = Modifier.fillMaxWidth().clickable { groupPickerOpen = true }) {
+                    OutlinedCard(modifier = Modifier.fillMaxWidth().tappable { groupPickerOpen = true }) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,

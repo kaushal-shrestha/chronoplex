@@ -1,6 +1,6 @@
 package com.chronoplex.app.ui.screens
 
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -119,7 +119,7 @@ private fun ZoneRow(zone: ZoneOption, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .tappable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

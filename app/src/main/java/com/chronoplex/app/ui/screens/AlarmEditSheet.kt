@@ -3,7 +3,7 @@ package com.chronoplex.app.ui.screens
 import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,6 +64,8 @@ import com.chronoplex.app.R
 import com.chronoplex.app.data.AlarmZoneSource
 import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.ui.AlarmEditViewModel
+import com.chronoplex.app.ui.rememberTapFeedback
+import com.chronoplex.app.ui.rememberToggleFeedback
 import java.time.DayOfWeek
 import kotlinx.coroutines.launch
 
@@ -113,7 +115,7 @@ fun AlarmEditSheet(
                     .padding(start = 4.dp, end = 12.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = ::dismissAnimated) {
+                IconButton(onClick = rememberTapFeedback(::dismissAnimated)) {
                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                 }
                 Text(
@@ -122,7 +124,7 @@ fun AlarmEditSheet(
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(
-                    onClick = { vm.save { dismissAnimated() } },
+                    onClick = rememberTapFeedback { vm.save { dismissAnimated() } },
                     enabled = s.zoneId.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.save))
@@ -143,7 +145,7 @@ fun AlarmEditSheet(
                         sources.forEachIndexed { i, src ->
                             SegmentedButton(
                                 selected = s.zoneSource == src,
-                                onClick = { vm.setZoneSource(src) },
+                                onClick = rememberTapFeedback { vm.setZoneSource(src) },
                                 shape = SegmentedButtonDefaults.itemShape(i, sources.size),
                             ) {
                                 Text(when (src) {
@@ -157,7 +159,7 @@ fun AlarmEditSheet(
                     OutlinedCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onPickZone(s.zoneSource == AlarmZoneSource.ADDED_CLOCKS) }
+                            .tappable { onPickZone(s.zoneSource == AlarmZoneSource.ADDED_CLOCKS) }
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -208,22 +210,22 @@ fun AlarmEditSheet(
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = s.daysMask == 0,
-                            onClick = { vm.setDaysMask(0) },
+                            onClick = rememberTapFeedback { vm.setDaysMask(0) },
                             label = { Text(stringResource(R.string.repeat_once)) },
                         )
                         FilterChip(
                             selected = s.daysMask == DayMask.WEEKDAYS,
-                            onClick = { vm.setDaysMask(DayMask.WEEKDAYS) },
+                            onClick = rememberTapFeedback { vm.setDaysMask(DayMask.WEEKDAYS) },
                             label = { Text(stringResource(R.string.repeat_weekdays)) },
                         )
                         FilterChip(
                             selected = s.daysMask == DayMask.WEEKENDS,
-                            onClick = { vm.setDaysMask(DayMask.WEEKENDS) },
+                            onClick = rememberTapFeedback { vm.setDaysMask(DayMask.WEEKENDS) },
                             label = { Text(stringResource(R.string.repeat_weekends)) },
                         )
                         FilterChip(
                             selected = s.daysMask == DayMask.EVERY_DAY,
-                            onClick = { vm.setDaysMask(DayMask.EVERY_DAY) },
+                            onClick = rememberTapFeedback { vm.setDaysMask(DayMask.EVERY_DAY) },
                             label = { Text(stringResource(R.string.repeat_every_day)) },
                         )
                     }
@@ -246,7 +248,7 @@ fun AlarmEditSheet(
                     val currentGroupName = groups.firstOrNull { it.id == s.groupId }?.name
                         ?: stringResource(R.string.ungrouped)
                     OutlinedCard(
-                        modifier = Modifier.fillMaxWidth().clickable { groupPickerOpen = true }
+                        modifier = Modifier.fillMaxWidth().tappable { groupPickerOpen = true }
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -300,7 +302,7 @@ private fun SwitchRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = rememberToggleFeedback(onCheckedChange))
     }
 }
 
@@ -317,7 +319,7 @@ private fun DayChip(letter: String, selected: Boolean, fullName: String, onClick
             .clip(shape)
             .background(bg)
             .border(1.dp, borderColor, shape)
-            .clickable(onClick = onClick)
+            .tappable(onClick = onClick)
             .semantics { contentDescription = fullName },
         contentAlignment = Alignment.Center,
     ) {

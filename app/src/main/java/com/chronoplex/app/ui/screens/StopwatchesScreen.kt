@@ -1,7 +1,7 @@
 package com.chronoplex.app.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,6 +69,7 @@ import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Stopwatch
 import com.chronoplex.app.domain.StopwatchState
 import com.chronoplex.app.ui.StopwatchesViewModel
+import com.chronoplex.app.ui.rememberTapFeedback
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -124,26 +125,26 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                 },
                 actions = {
                     if (reorderMode) {
-                        IconButton(onClick = { reorderMode = false }) {
+                        IconButton(onClick = rememberTapFeedback { reorderMode = false }) {
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
                         val anyMenuContent = stopwatches.size >= 2 || groupingEnabled
                         if (anyMenuContent) {
-                            IconButton(onClick = { menuOpen = true }) {
+                            IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
                                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 if (stopwatches.size >= 2) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.reorder)) },
-                                        onClick = { menuOpen = false; reorderMode = true },
+                                        onClick = rememberTapFeedback { menuOpen = false; reorderMode = true },
                                     )
                                 }
                                 if (groupingEnabled) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.manage_groups)) },
-                                        onClick = { menuOpen = false; manageGroupsOpen = true },
+                                        onClick = rememberTapFeedback { menuOpen = false; manageGroupsOpen = true },
                                     )
                                 }
                             }
@@ -154,7 +155,8 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
         },
         floatingActionButton = {
             if (!reorderMode) {
-                FloatingActionButton(onClick = { vm.addStopwatch() }) {
+                val onFabClick = rememberTapFeedback { vm.addStopwatch() }
+                FloatingActionButton(onClick = onFabClick) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_stopwatch))
                 }
             }
@@ -297,7 +299,7 @@ private fun StopwatchCard(
                             fontWeight = if (stopwatch.label.isNotBlank()) FontWeight.Bold else FontWeight.Normal,
                             modifier = Modifier.weight(1f, fill = false),
                         )
-                        IconButton(onClick = onRename) {
+                        IconButton(onClick = rememberTapFeedback(onRename)) {
                             Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.rename))
                         }
                     }
@@ -320,7 +322,7 @@ private fun StopwatchCard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = {
+                IconButton(onClick = rememberTapFeedback {
                     when (stopwatch.state) {
                         StopwatchState.RUNNING -> vm.pause(stopwatch)
                         else -> vm.start(stopwatch)
@@ -335,16 +337,16 @@ private fun StopwatchCard(
                     )
                 }
                 IconButton(
-                    onClick = { vm.lap(stopwatch) },
+                    onClick = rememberTapFeedback { vm.lap(stopwatch) },
                     enabled = stopwatch.state == StopwatchState.RUNNING,
                 ) {
                     Icon(Icons.Default.Timer, contentDescription = stringResource(R.string.lap))
                 }
-                IconButton(onClick = { vm.reset(stopwatch) }) {
+                IconButton(onClick = rememberTapFeedback { vm.reset(stopwatch) }) {
                     Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.reset))
                 }
                 if (groupingEnabled) {
-                    IconButton(onClick = onMove) {
+                    IconButton(onClick = rememberTapFeedback(onMove)) {
                         Icon(
                             Icons.Default.MoreVert,
                             contentDescription = stringResource(R.string.move_to_group),
@@ -352,7 +354,7 @@ private fun StopwatchCard(
                         )
                     }
                 }
-                IconButton(onClick = onDelete) {
+                IconButton(onClick = rememberTapFeedback(onDelete)) {
                     Icon(
                         Icons.Default.DeleteOutline,
                         contentDescription = stringResource(R.string.delete),
@@ -363,7 +365,7 @@ private fun StopwatchCard(
                     Spacer(Modifier.weight(1f))
                     Row(
                         modifier = Modifier
-                            .clickable { lapsExpanded = !lapsExpanded }
+                            .tappable { lapsExpanded = !lapsExpanded }
                             .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -586,10 +588,10 @@ private fun RenameDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(text) }) { Text(stringResource(R.string.save)) }
+            TextButton(onClick = rememberTapFeedback { onConfirm(text) }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = rememberTapFeedback(onDismiss)) { Text(stringResource(R.string.cancel)) }
         },
     )
 }

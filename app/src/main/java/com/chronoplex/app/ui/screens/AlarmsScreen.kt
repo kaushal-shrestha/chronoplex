@@ -1,6 +1,6 @@
 package com.chronoplex.app.ui.screens
 
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +63,8 @@ import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.domain.Group
 import com.chronoplex.app.ui.AlarmEditViewModel
 import com.chronoplex.app.ui.AlarmsViewModel
+import com.chronoplex.app.ui.rememberTapFeedback
+import com.chronoplex.app.ui.rememberToggleFeedback
 import kotlinx.coroutines.launch
 import com.chronoplex.app.ui.needsExactAlarmGrant
 import com.chronoplex.app.ui.needsNotificationGrant
@@ -132,7 +134,7 @@ fun AlarmsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.tab_alarms)) },
                 actions = {
-                    IconButton(onClick = { showPermissionDialog = true }) {
+                    IconButton(onClick = rememberTapFeedback { showPermissionDialog = true }) {
                         Icon(
                             if (allPermsOk) Icons.Default.CheckCircle else Icons.Default.Warning,
                             contentDescription = stringResource(R.string.alarm_readiness),
@@ -141,13 +143,13 @@ fun AlarmsScreen(
                         )
                     }
                     if (groupingEnabled) {
-                        IconButton(onClick = { menuOpen = true }) {
+                        IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.manage_groups)) },
-                                onClick = { menuOpen = false; manageGroupsOpen = true },
+                                onClick = rememberTapFeedback { menuOpen = false; manageGroupsOpen = true },
                             )
                         }
                     }
@@ -155,7 +157,8 @@ fun AlarmsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = ::openAdd) {
+            val onFabClick = rememberTapFeedback { openAdd() }
+            FloatingActionButton(onClick = onFabClick) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_alarm))
             }
         },
@@ -321,7 +324,7 @@ private fun PermissionStatusDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dismiss)) }
+            TextButton(onClick = rememberTapFeedback(onDismiss)) { Text(stringResource(R.string.dismiss)) }
         },
     )
 }
@@ -347,7 +350,7 @@ private fun PermissionLine(
             Text(rationale, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 4.dp))
-            Button(onClick = onAction) { Text(actionLabel) }
+            Button(onClick = rememberTapFeedback(onAction)) { Text(actionLabel) }
         }
     }
 }
@@ -369,7 +372,7 @@ private fun AlarmRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
+            .tappable(onClick = onClick),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -395,7 +398,7 @@ private fun AlarmRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(checked = alarm.enabled, onCheckedChange = { onToggle() })
+                Switch(checked = alarm.enabled, onCheckedChange = rememberToggleFeedback { onToggle() })
             }
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -415,7 +418,7 @@ private fun AlarmRow(
                     )
                 }
                 if (groupingEnabled) {
-                    IconButton(onClick = onMove) {
+                    IconButton(onClick = rememberTapFeedback(onMove)) {
                         Icon(
                             Icons.Default.MoreVert,
                             contentDescription = stringResource(R.string.move_to_group),
@@ -423,7 +426,7 @@ private fun AlarmRow(
                         )
                     }
                 }
-                IconButton(onClick = onDelete) {
+                IconButton(onClick = rememberTapFeedback(onDelete)) {
                     Icon(
                         Icons.Default.DeleteOutline,
                         contentDescription = stringResource(R.string.delete),

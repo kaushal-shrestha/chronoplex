@@ -2,7 +2,7 @@ package com.chronoplex.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import com.chronoplex.app.R
 import com.chronoplex.app.ui.DurationField
 import com.chronoplex.app.ui.TimerEditViewModel
+import com.chronoplex.app.ui.rememberTapFeedback
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -89,7 +90,7 @@ fun TimerEditSheet(
                     .padding(start = 4.dp, end = 12.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = ::dismissAnimated) {
+                IconButton(onClick = rememberTapFeedback(::dismissAnimated)) {
                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                 }
                 Text(
@@ -98,7 +99,7 @@ fun TimerEditSheet(
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(
-                    onClick = { vm.save { dismissAnimated() } },
+                    onClick = rememberTapFeedback { vm.save { dismissAnimated() } },
                     enabled = s.isValid,
                 ) {
                     Text(stringResource(R.string.save))
@@ -175,7 +176,7 @@ fun TimerEditSheet(
                     val currentGroupName = groups.firstOrNull { it.id == s.groupId }?.name
                         ?: stringResource(R.string.ungrouped)
                     OutlinedCard(
-                        modifier = Modifier.fillMaxWidth().clickable { groupPickerOpen = true }
+                        modifier = Modifier.fillMaxWidth().tappable { groupPickerOpen = true }
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -214,7 +215,7 @@ fun TimerEditSheet(
 private fun PresetChip(labelRes: Int, millis: Long, vm: TimerEditViewModel) {
     FilterChip(
         selected = false,
-        onClick = { vm.setPresetMillis(millis) },
+        onClick = rememberTapFeedback { vm.setPresetMillis(millis) },
         label = { Text(stringResource(labelRes)) },
     )
 }
@@ -235,7 +236,7 @@ private fun DurationCell(
             .clip(shape)
             .border(if (focused) 2.dp else 1.dp, borderColor, shape)
             .background(if (focused) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent)
-            .clickable(onClick = onClick)
+            .tappable(onClick = onClick)
             .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -306,11 +307,12 @@ private fun KeypadKey(
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(12.dp)
+    val tapWithFeedback = rememberTapFeedback(onClick)
     Box(
         modifier = modifier
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick)
+            .tappable(onClick = tapWithFeedback)
             .padding(vertical = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
