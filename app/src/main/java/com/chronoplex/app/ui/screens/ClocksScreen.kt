@@ -12,9 +12,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Schedule
@@ -52,6 +57,8 @@ import com.chronoplex.app.R
 import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.Group
 import com.chronoplex.app.ui.ClocksViewModel
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlinx.coroutines.delay
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -72,57 +79,86 @@ fun ClocksScreen(
     var confirmReset by remember { mutableStateOf(false) }
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Clock?>(null) }
+    var reorderMode by remember { mutableStateOf(false) }
+    // Flat-mode reorder only; exit if grouping gets turned on or list empties out.
+    if ((groupingEnabled || clocks.isEmpty()) && reorderMode) reorderMode = false
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.tab_clocks)) },
+                title = {
+                    Text(
+                        if (reorderMode) stringResource(R.string.reorder)
+                        else stringResource(R.string.tab_clocks)
+                    )
+                },
                 actions = {
-                    IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        if (groupingEnabled) {
+                    if (reorderMode) {
+                        IconButton(onClick = { reorderMode = false }) {
+                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
+                        }
+                    } else {
+                        // Reorder is only meaningful with at least two flat items, no groups.
+                        if (!groupingEnabled && clocks.size >= 2) {
+                            IconButton(onClick = { reorderMode = true }) {
+                                Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.reorder))
+                            }
+                        }
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            if (groupingEnabled) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.manage_groups)) },
+                                    onClick = { menuOpen = false; manageGroupsOpen = true },
+                                )
+                            }
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.manage_groups)) },
-                                onClick = { menuOpen = false; manageGroupsOpen = true },
+                                text = { Text(stringResource(R.string.reset_clocks)) },
+                                onClick = {
+                                    menuOpen = false
+                                    confirmReset = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.clear_all_clocks)) },
+                                onClick = {
+                                    menuOpen = false
+                                    confirmClearAll = true
+                                },
+                                enabled = clocks.isNotEmpty(),
                             )
                         }
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.reset_clocks)) },
-                            onClick = {
-                                menuOpen = false
-                                confirmReset = true
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.clear_all_clocks)) },
-                            onClick = {
-                                menuOpen = false
-                                confirmClearAll = true
-                            },
-                            enabled = clocks.isNotEmpty(),
-                        )
                     }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_clock))
+            if (!reorderMode) {
+                FloatingActionButton(onClick = onAdd) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_clock))
+                }
             }
         },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            ClocksList(
-                clocks = clocks,
-                groups = groups,
-                groupingEnabled = groupingEnabled,
-                onEdit = onEdit,
-                onDelete = { vm.delete(it.id) },
-                onMove = { moveTarget = it },
-                onToggleCollapsed = { vm.toggleCollapsed(it) },
-            )
+            if (reorderMode) {
+                ClocksReorderableList(
+                    clocks = clocks,
+                    onReorder = { vm.reorderItems(it) },
+                )
+            } else {
+                ClocksList(
+                    clocks = clocks,
+                    groups = groups,
+                    groupingEnabled = groupingEnabled,
+                    onEdit = onEdit,
+                    onDelete = { vm.delete(it.id) },
+                    onMove = { moveTarget = it },
+                    onToggleCollapsed = { vm.toggleCollapsed(it) },
+                )
+            }
         }
     }
 
@@ -387,6 +423,68 @@ private fun ClockRow(
                     contentDescription = stringResource(R.string.delete),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClocksReorderableList(
+    clocks: List<Clock>,
+    onReorder: (List<Long>) -> Unit,
+) {
+    // Local mirror of the upstream list so the LazyColumn can show the drag in flight.
+    // Resync from upstream when the set of ids changes (e.g., delete from elsewhere).
+    var local by remember(clocks.map { it.id }) { mutableStateOf(clocks) }
+
+    val lazyListState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        local = local.toMutableList().apply {
+            val fromIdx = indexOfFirst { it.id == from.key as Long }
+            val toIdx = indexOfFirst { it.id == to.key as Long }
+            if (fromIdx in indices && toIdx in indices) add(toIdx, removeAt(fromIdx))
+        }
+        onReorder(local.map { it.id })
+    }
+
+    Column {
+        Text(
+            stringResource(R.string.reorder_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(local, key = { it.id }) { clock ->
+                ReorderableItem(reorderState, key = clock.id) {
+                    Card(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.DragHandle,
+                                contentDescription = stringResource(R.string.reorder),
+                                modifier = Modifier.draggableHandle().size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(clock.label, style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    clock.zoneId,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

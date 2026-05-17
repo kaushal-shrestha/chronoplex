@@ -139,6 +139,8 @@
     <string name="rename_group">Rename group</string>
     <string name="ungrouped">Ungrouped</string>
     <string name="no_groups_yet">No groups yet — create one below.</string>
+    <string name="reorder">Reorder</string>
+    <string name="reorder_hint">Drag handles to reorder. Tap Done when finished.</string>
     <string name="delete_group">Delete group</string>
     <string name="delete_group_message">Delete %1$s? Items in this group won\'t be deleted — they\'ll move to Ungrouped.</string>
     <string name="delete_group_with_count">Delete %1$s? Its %2$d item(s) won\'t be deleted — they\'ll move to Ungrouped.</string>
