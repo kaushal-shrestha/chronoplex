@@ -45,6 +45,7 @@ class TimerRepository(private val dao: TimerDao) {
     }
 
     suspend fun delete(id: Long) = dao.deleteById(id)
+    suspend fun deleteAll() = dao.deleteAll()
 
     // ----- Grouping -----
 

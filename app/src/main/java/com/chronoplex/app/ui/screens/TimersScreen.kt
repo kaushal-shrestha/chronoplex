@@ -22,10 +22,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -41,6 +43,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -80,9 +83,11 @@ fun TimersScreen(
     val groupingEnabled by vm.groupingEnabled.collectAsState()
     var menuOpen by remember { mutableStateOf(false) }
     var manageGroupsOpen by remember { mutableStateOf(false) }
+    var actionsTarget by remember { mutableStateOf<Timer?>(null) }
     var moveTarget by remember { mutableStateOf<Timer?>(null) }
     var ungroupedCollapsed by remember { mutableStateOf(false) }
     var reorderMode by remember { mutableStateOf(false) }
+    var confirmClearAll by remember { mutableStateOf(false) }
     var editSheetOpen by remember { mutableStateOf(false) }
     if (timers.isEmpty() && reorderMode) reorderMode = false
     val snackbarHostState = remember { SnackbarHostState() }
@@ -132,25 +137,27 @@ fun TimersScreen(
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
-                        val anyMenuContent = timers.size >= 2 || groupingEnabled
-                        if (anyMenuContent) {
-                            IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            if (timers.size >= 2) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.reorder)) },
+                                    onClick = rememberTapFeedback { menuOpen = false; reorderMode = true },
+                                )
                             }
-                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                if (timers.size >= 2) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.reorder)) },
-                                        onClick = rememberTapFeedback { menuOpen = false; reorderMode = true },
-                                    )
-                                }
-                                if (groupingEnabled) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.manage_groups)) },
-                                        onClick = rememberTapFeedback { menuOpen = false; manageGroupsOpen = true },
-                                    )
-                                }
+                            if (groupingEnabled) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.manage_groups)) },
+                                    onClick = rememberTapFeedback { menuOpen = false; manageGroupsOpen = true },
+                                )
                             }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.clear_all_timers)) },
+                                onClick = rememberTapFeedback { menuOpen = false; confirmClearAll = true },
+                                enabled = timers.isNotEmpty(),
+                            )
                         }
                     }
                 },
@@ -191,7 +198,6 @@ fun TimersScreen(
                         TimerRow(
                             timer = timer,
                             nowMillis = now,
-                            groupingEnabled = false,
                             onClick = { openEdit(timer) },
                             onPrimaryAction = {
                                 when (timer.state) {
@@ -201,7 +207,7 @@ fun TimersScreen(
                             },
                             onReset = { vm.reset(timer) },
                             onDelete = { handleDelete(timer) },
-                            onMove = { moveTarget = timer },
+                            onLongClick = { actionsTarget = timer },
                         )
                     }
                 } else {
@@ -216,7 +222,6 @@ fun TimersScreen(
                                 TimerRow(
                                     timer = timer,
                                     nowMillis = now,
-                                    groupingEnabled = true,
                                     onClick = { openEdit(timer) },
                                     onPrimaryAction = {
                                         when (timer.state) {
@@ -226,7 +231,7 @@ fun TimersScreen(
                                     },
                                     onReset = { vm.reset(timer) },
                                     onDelete = { handleDelete(timer) },
-                                    onMove = { moveTarget = timer },
+                                    onLongClick = { actionsTarget = timer },
                                 )
                             }
                         }
@@ -245,7 +250,6 @@ fun TimersScreen(
                                 TimerRow(
                                     timer = timer,
                                     nowMillis = now,
-                                    groupingEnabled = true,
                                     onClick = { openEdit(timer) },
                                     onPrimaryAction = {
                                         when (timer.state) {
@@ -255,7 +259,7 @@ fun TimersScreen(
                                     },
                                     onReset = { vm.reset(timer) },
                                     onDelete = { handleDelete(timer) },
-                                    onMove = { moveTarget = timer },
+                                    onLongClick = { actionsTarget = timer },
                                 )
                             }
                         }
@@ -289,6 +293,49 @@ fun TimersScreen(
         )
     }
 
+    actionsTarget?.let { timer ->
+        val moveLabel = stringResource(R.string.move_to_group)
+        val deleteLabel = stringResource(R.string.delete)
+        RowActionsSheet(
+            title = timer.label.ifBlank { null },
+            actions = buildList {
+                if (groupingEnabled) {
+                    add(RowAction(
+                        label = moveLabel,
+                        icon = Icons.Default.Folder,
+                        onClick = { actionsTarget = null; moveTarget = timer },
+                    ))
+                }
+                add(RowAction(
+                    label = deleteLabel,
+                    icon = Icons.Default.DeleteOutline,
+                    tint = MaterialTheme.colorScheme.error,
+                    onClick = { actionsTarget = null; handleDelete(timer) },
+                ))
+            },
+            onDismiss = { actionsTarget = null },
+        )
+    }
+
+    if (confirmClearAll) {
+        AlertDialog(
+            onDismissRequest = { confirmClearAll = false },
+            title = { Text(stringResource(R.string.clear_all_timers)) },
+            text = { Text(stringResource(R.string.clear_all_timers_message)) },
+            confirmButton = {
+                TextButton(onClick = rememberTapFeedback {
+                    confirmClearAll = false
+                    vm.deleteAll()
+                }) { Text(stringResource(R.string.clear)) }
+            },
+            dismissButton = {
+                TextButton(onClick = rememberTapFeedback { confirmClearAll = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
     if (editSheetOpen) {
         TimerEditSheet(vm = editVm, onDismiss = { editSheetOpen = false })
     }
@@ -298,12 +345,11 @@ fun TimersScreen(
 private fun TimerRow(
     timer: Timer,
     nowMillis: Long,
-    groupingEnabled: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onPrimaryAction: () -> Unit,
     onReset: () -> Unit,
     onDelete: () -> Unit,
-    onMove: () -> Unit,
 ) {
     val remaining = timer.remainingMillis(nowMillis)
     val progress = if (timer.durationMillis > 0L) {
@@ -314,7 +360,7 @@ private fun TimerRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .tappable(onClick = onClick),
+            .tappable(onLongClick = onLongClick, onClick = onClick),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -354,15 +400,6 @@ private fun TimerRow(
                 }
                 IconButton(onClick = rememberTapFeedback(onReset)) {
                     Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.reset))
-                }
-                if (groupingEnabled) {
-                    IconButton(onClick = rememberTapFeedback(onMove)) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.move_to_group),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
                 IconButton(onClick = rememberTapFeedback(onDelete)) {
                     Icon(

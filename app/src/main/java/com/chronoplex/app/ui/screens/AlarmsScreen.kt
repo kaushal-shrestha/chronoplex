@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -94,6 +95,8 @@ fun AlarmsScreen(
     val allPermsOk = exactOk && notifOk
     var menuOpen by remember { mutableStateOf(false) }
     var manageGroupsOpen by remember { mutableStateOf(false) }
+    var confirmClearAll by remember { mutableStateOf(false) }
+    var actionsTarget by remember { mutableStateOf<Alarm?>(null) }
     var moveTarget by remember { mutableStateOf<Alarm?>(null) }
     var ungroupedCollapsed by remember { mutableStateOf(false) }
     var editSheetOpen by remember { mutableStateOf(false) }
@@ -142,16 +145,21 @@ fun AlarmsScreen(
                                    else MaterialTheme.colorScheme.error,
                         )
                     }
-                    if (groupingEnabled) {
-                        IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        if (groupingEnabled) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.manage_groups)) },
                                 onClick = rememberTapFeedback { menuOpen = false; manageGroupsOpen = true },
                             )
                         }
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.clear_all_alarms)) },
+                            onClick = rememberTapFeedback { menuOpen = false; confirmClearAll = true },
+                            enabled = alarms.isNotEmpty(),
+                        )
                     }
                 },
             )
@@ -176,11 +184,10 @@ fun AlarmsScreen(
                     items(alarms, key = { it.id }) { alarm ->
                         AlarmRow(
                             alarm = alarm,
-                            groupingEnabled = false,
                             onClick = { openEdit(alarm) },
+                            onLongClick = { actionsTarget = alarm },
                             onToggle = { vm.toggleEnabled(alarm) },
                             onDelete = { handleDelete(alarm) },
-                            onMove = { moveTarget = alarm },
                         )
                     }
                 } else {
@@ -194,11 +201,10 @@ fun AlarmsScreen(
                             items(members, key = { "g${g.id}-${it.id}" }) { alarm ->
                                 AlarmRow(
                                     alarm = alarm,
-                                    groupingEnabled = true,
                                     onClick = { openEdit(alarm) },
+                                    onLongClick = { actionsTarget = alarm },
                                     onToggle = { vm.toggleEnabled(alarm) },
                                     onDelete = { handleDelete(alarm) },
-                                    onMove = { moveTarget = alarm },
                                 )
                             }
                         }
@@ -216,11 +222,10 @@ fun AlarmsScreen(
                             items(ungrouped, key = { "u-${it.id}" }) { alarm ->
                                 AlarmRow(
                                     alarm = alarm,
-                                    groupingEnabled = true,
                                     onClick = { openEdit(alarm) },
+                                    onLongClick = { actionsTarget = alarm },
                                     onToggle = { vm.toggleEnabled(alarm) },
                                     onDelete = { handleDelete(alarm) },
-                                    onMove = { moveTarget = alarm },
                                 )
                             }
                         }
@@ -264,6 +269,49 @@ fun AlarmsScreen(
                 moveTarget = null
             },
             onDismiss = { moveTarget = null },
+        )
+    }
+
+    actionsTarget?.let { alarm ->
+        val moveLabel = stringResource(R.string.move_to_group)
+        val deleteLabel = stringResource(R.string.delete)
+        RowActionsSheet(
+            title = alarm.label.ifBlank { null },
+            actions = buildList {
+                if (groupingEnabled) {
+                    add(RowAction(
+                        label = moveLabel,
+                        icon = Icons.Default.Folder,
+                        onClick = { actionsTarget = null; moveTarget = alarm },
+                    ))
+                }
+                add(RowAction(
+                    label = deleteLabel,
+                    icon = Icons.Default.DeleteOutline,
+                    tint = MaterialTheme.colorScheme.error,
+                    onClick = { actionsTarget = null; handleDelete(alarm) },
+                ))
+            },
+            onDismiss = { actionsTarget = null },
+        )
+    }
+
+    if (confirmClearAll) {
+        AlertDialog(
+            onDismissRequest = { confirmClearAll = false },
+            title = { Text(stringResource(R.string.clear_all_alarms)) },
+            text = { Text(stringResource(R.string.clear_all_alarms_message)) },
+            confirmButton = {
+                TextButton(onClick = rememberTapFeedback {
+                    confirmClearAll = false
+                    vm.deleteAll()
+                }) { Text(stringResource(R.string.clear)) }
+            },
+            dismissButton = {
+                TextButton(onClick = rememberTapFeedback { confirmClearAll = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
         )
     }
 
@@ -358,11 +406,10 @@ private fun PermissionLine(
 @Composable
 private fun AlarmRow(
     alarm: Alarm,
-    groupingEnabled: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
-    onMove: () -> Unit,
 ) {
     val timeFmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
     val timeText = remember(alarm.hour, alarm.minute) {
@@ -372,7 +419,7 @@ private fun AlarmRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .tappable(onClick = onClick),
+            .tappable(onLongClick = onLongClick, onClick = onClick),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -416,15 +463,6 @@ private fun AlarmRow(
                         color = if (snoozed) MaterialTheme.colorScheme.tertiary
                                 else MaterialTheme.colorScheme.primary,
                     )
-                }
-                if (groupingEnabled) {
-                    IconButton(onClick = rememberTapFeedback(onMove)) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.move_to_group),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
                 IconButton(onClick = rememberTapFeedback(onDelete)) {
                     Icon(

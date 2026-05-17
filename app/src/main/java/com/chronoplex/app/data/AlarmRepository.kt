@@ -33,6 +33,7 @@ class AlarmRepository(private val dao: AlarmDao) {
     }
 
     suspend fun delete(id: Long) = dao.deleteById(id)
+    suspend fun deleteAll() = dao.deleteAll()
 
     // ----- Grouping -----
 

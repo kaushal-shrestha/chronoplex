@@ -82,6 +82,9 @@ interface AlarmDao {
     @Query("DELETE FROM alarms WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("DELETE FROM alarms")
+    suspend fun deleteAll()
+
     @Query("UPDATE alarms SET groupId = :groupId WHERE id = :id")
     suspend fun assignToGroup(id: Long, groupId: Long?)
 
@@ -130,6 +133,9 @@ interface TimerDao {
     @Query("DELETE FROM timers WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("DELETE FROM timers")
+    suspend fun deleteAll()
+
     @Query("UPDATE timers SET groupId = :groupId WHERE id = :id")
     suspend fun assignToGroup(id: Long, groupId: Long?)
 
@@ -174,6 +180,12 @@ interface StopwatchDao {
 
     @Query("DELETE FROM stopwatches WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM stopwatches")
+    suspend fun deleteAll()
+
+    @Query("DELETE FROM stopwatch_laps")
+    suspend fun deleteAllLaps()
 
     @Query("SELECT * FROM stopwatch_laps WHERE stopwatchId = :stopwatchId ORDER BY lapNumber ASC")
     fun observeLaps(stopwatchId: Long): Flow<List<StopwatchLapEntity>>

@@ -98,6 +98,11 @@ class AlarmsViewModel(private val container: AppContainer) : ViewModel() {
         container.alarmRepo.delete(alarm.id)
     }
 
+    fun deleteAll() = viewModelScope.launch {
+        alarms.value.forEach { container.scheduler.cancel(it.id) }
+        container.alarmRepo.deleteAll()
+    }
+
     fun moveToGroup(alarmId: Long, groupId: Long?) = viewModelScope.launch {
         container.alarmRepo.assignToGroup(alarmId, groupId)
     }
@@ -335,6 +340,11 @@ class TimersViewModel(private val container: AppContainer) : ViewModel() {
     fun delete(timer: Timer) = viewModelScope.launch {
         container.timerScheduler.reset(timer)
         container.timerRepo.delete(timer.id)
+    }
+
+    fun deleteAll() = viewModelScope.launch {
+        timers.value.forEach { container.timerScheduler.reset(it) }
+        container.timerRepo.deleteAll()
     }
 
     fun moveToGroup(timerId: Long, groupId: Long?) = viewModelScope.launch {
@@ -596,6 +606,10 @@ class StopwatchesViewModel(private val container: AppContainer) : ViewModel() {
 
     fun delete(stopwatch: Stopwatch) = viewModelScope.launch {
         container.stopwatchRepo.delete(stopwatch.id)
+    }
+
+    fun deleteAll() = viewModelScope.launch {
+        container.stopwatchRepo.deleteAll()
     }
 }
 

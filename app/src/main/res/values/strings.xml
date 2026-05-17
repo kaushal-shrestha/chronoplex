@@ -42,6 +42,12 @@
     <string name="more_options">More options</string>
     <string name="clear_all_clocks">Clear all clocks</string>
     <string name="clear_all_clocks_message">Remove every clock from the list. Alarms anchored to those zones aren\'t affected. This can\'t be undone.</string>
+    <string name="clear_all_alarms">Clear all alarms</string>
+    <string name="clear_all_alarms_message">Cancel and remove every alarm. This can\'t be undone.</string>
+    <string name="clear_all_timers">Clear all timers</string>
+    <string name="clear_all_timers_message">Reset and remove every timer. This can\'t be undone.</string>
+    <string name="clear_all_stopwatches">Clear all stopwatches</string>
+    <string name="clear_all_stopwatches_message">Remove every stopwatch and its laps. This can\'t be undone.</string>
     <string name="clear">Clear</string>
     <string name="reset_clocks">Reset to suggested clocks</string>
     <string name="reset_clocks_message">Replace the current list with Eastern Time and UTC. Existing alarms aren\'t affected.</string>
