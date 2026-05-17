@@ -94,16 +94,7 @@ class TimerScheduler(private val context: Context) {
             endsAtMillis = null,
             pausedRemainingMillis = null,
         )
-        when (timer.finishMode) {
-            com.chronoplex.app.domain.TimerFinishMode.NOTIFICATION ->
-                TimerNotifier.showFinishedNotification(context, timer.copy(state = TimerState.FINISHED))
-            com.chronoplex.app.domain.TimerFinishMode.FULL_SCREEN ->
-                TimerNotifier.showFinishedNotification(
-                    context,
-                    timer.copy(state = TimerState.FINISHED),
-                    fullScreen = true,
-                )
-        }
+        TimerNotifier.showFinishedNotification(context, timer.copy(state = TimerState.FINISHED))
     }
 
     /** User dismissed a FINISHED timer. */

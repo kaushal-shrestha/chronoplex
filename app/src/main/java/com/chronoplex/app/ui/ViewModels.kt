@@ -13,6 +13,9 @@ import com.chronoplex.app.domain.AppearanceMode
 import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.domain.ThemePalette
+import com.chronoplex.app.domain.Stopwatch
+import com.chronoplex.app.domain.StopwatchLap
+import com.chronoplex.app.domain.StopwatchState
 import com.chronoplex.app.domain.Timer
 import com.chronoplex.app.domain.TimerFinishMode
 import com.chronoplex.app.domain.TimerState
@@ -187,7 +190,6 @@ data class SettingsState(
     val palette: ThemePalette = ThemePalette.Anchor,
     val alarmZoneSource: AlarmZoneSource = AlarmZoneSource.ALL_ZONES,
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
-    val timerFinishMode: TimerFinishMode = TimerFinishMode.NOTIFICATION,
 )
 
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
@@ -196,15 +198,13 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.palette,
         container.settings.alarmZoneSource,
         container.settings.firstDayOfWeek,
-        container.settings.timerFinishMode,
-    ) { a, p, z, d, t -> SettingsState(a, p, z, d, t) }
+    ) { a, p, z, d -> SettingsState(a, p, z, d) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     fun setAppearance(m: AppearanceMode) = viewModelScope.launch { container.settings.setAppearance(m) }
     fun setPalette(p: ThemePalette) = viewModelScope.launch { container.settings.setPalette(p) }
     fun setZoneSource(s: AlarmZoneSource) = viewModelScope.launch { container.settings.setAlarmZoneSource(s) }
     fun setFirstDayOfWeek(d: DayOfWeek) = viewModelScope.launch { container.settings.setFirstDayOfWeek(d) }
-    fun setTimerFinishMode(m: TimerFinishMode) = viewModelScope.launch { container.settings.setTimerFinishMode(m) }
 }
 
 class TimersViewModel(private val container: AppContainer) : ViewModel() {
@@ -229,7 +229,6 @@ data class TimerEditState(
     val hours: Int = 0,
     val minutes: Int = 5,
     val seconds: Int = 0,
-    val finishMode: TimerFinishMode = TimerFinishMode.NOTIFICATION,
     val focusedField: DurationField = DurationField.MINUTES,
 ) {
     val totalMillis: Long
@@ -246,10 +245,6 @@ class TimerEditViewModel(
     val state = MutableStateFlow(TimerEditState())
 
     init {
-        viewModelScope.launch {
-            val defaultMode = container.settings.timerFinishMode.first()
-            state.update { it.copy(finishMode = defaultMode) }
-        }
         val id = handle.get<Long>("id") ?: 0L
         if (id > 0L) viewModelScope.launch {
             container.timerRepo.getById(id)?.let { t ->
@@ -261,7 +256,6 @@ class TimerEditViewModel(
                         hours = (total / 3600).toInt(),
                         minutes = ((total % 3600) / 60).toInt(),
                         seconds = (total % 60).toInt(),
-                        finishMode = t.finishMode,
                     )
                 }
             }
@@ -269,7 +263,6 @@ class TimerEditViewModel(
     }
 
     fun setLabel(v: String) = state.update { it.copy(label = v) }
-    fun setFinishMode(m: TimerFinishMode) = state.update { it.copy(finishMode = m) }
     fun setFocus(f: DurationField) = state.update { it.copy(focusedField = f) }
 
     /** Append a digit to the currently-focused field (shift-left within 2 digits). */
@@ -324,7 +317,6 @@ class TimerEditViewModel(
             state = TimerState.IDLE,
             endsAtMillis = null,
             pausedRemainingMillis = null,
-            finishMode = s.finishMode,
             sortOrder = System.currentTimeMillis(),
         )
         container.timerRepo.upsert(timer)
@@ -344,6 +336,74 @@ class TimerEditViewModel(
     }
 }
 
+class StopwatchesViewModel(private val container: AppContainer) : ViewModel() {
+    val stopwatches: StateFlow<List<Stopwatch>> = container.stopwatchRepo.observeAll()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun observeLaps(stopwatchId: Long) = container.stopwatchRepo.observeLaps(stopwatchId)
+
+    fun addStopwatch() = viewModelScope.launch {
+        // Number it sequentially based on what's already there for a friendly default label.
+        val existing = stopwatches.value.size
+        container.stopwatchRepo.upsert(
+            Stopwatch(label = "Stopwatch ${existing + 1}", state = StopwatchState.IDLE)
+        )
+    }
+
+    fun start(stopwatch: Stopwatch) = viewModelScope.launch {
+        when (stopwatch.state) {
+            StopwatchState.IDLE -> container.stopwatchRepo.updateState(
+                id = stopwatch.id,
+                state = StopwatchState.RUNNING,
+                startedAtMillis = System.currentTimeMillis(),
+                accumulatedMillis = 0L,
+            )
+            StopwatchState.PAUSED -> container.stopwatchRepo.updateState(
+                id = stopwatch.id,
+                state = StopwatchState.RUNNING,
+                startedAtMillis = System.currentTimeMillis(),
+                accumulatedMillis = stopwatch.accumulatedMillis,
+            )
+            StopwatchState.RUNNING -> Unit
+        }
+    }
+
+    fun pause(stopwatch: Stopwatch) = viewModelScope.launch {
+        if (stopwatch.state != StopwatchState.RUNNING) return@launch
+        val elapsed = stopwatch.elapsedMillis(System.currentTimeMillis())
+        container.stopwatchRepo.updateState(
+            id = stopwatch.id,
+            state = StopwatchState.PAUSED,
+            startedAtMillis = null,
+            accumulatedMillis = elapsed,
+        )
+    }
+
+    fun reset(stopwatch: Stopwatch) = viewModelScope.launch {
+        container.stopwatchRepo.updateState(
+            id = stopwatch.id,
+            state = StopwatchState.IDLE,
+            startedAtMillis = null,
+            accumulatedMillis = 0L,
+        )
+        container.stopwatchRepo.clearLaps(stopwatch.id)
+    }
+
+    fun lap(stopwatch: Stopwatch) = viewModelScope.launch {
+        if (stopwatch.state != StopwatchState.RUNNING) return@launch
+        val total = stopwatch.elapsedMillis(System.currentTimeMillis())
+        container.stopwatchRepo.addLap(stopwatch.id, total)
+    }
+
+    fun rename(stopwatch: Stopwatch, label: String) = viewModelScope.launch {
+        container.stopwatchRepo.rename(stopwatch.id, label)
+    }
+
+    fun delete(stopwatch: Stopwatch) = viewModelScope.launch {
+        container.stopwatchRepo.delete(stopwatch.id)
+    }
+}
+
 /** Single factory routes every ViewModel through the AppContainer. */
 class AppViewModelFactory(private val container: AppContainer) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
@@ -353,6 +413,7 @@ class AppViewModelFactory(private val container: AppContainer) : ViewModelProvid
             ClocksViewModel::class.java -> ClocksViewModel(container)
             AlarmsViewModel::class.java -> AlarmsViewModel(container)
             TimersViewModel::class.java -> TimersViewModel(container)
+            StopwatchesViewModel::class.java -> StopwatchesViewModel(container)
             ClockEditViewModel::class.java -> ClockEditViewModel(container, handle)
             AlarmEditViewModel::class.java -> AlarmEditViewModel(container, handle)
             TimerEditViewModel::class.java -> TimerEditViewModel(container, handle)

@@ -19,7 +19,7 @@ import com.chronoplex.app.domain.Timer
 object TimerNotifier {
     private const val CHANNEL_ID = "timer_finished"
 
-    fun showFinishedNotification(context: Context, timer: Timer, fullScreen: Boolean = false) {
+    fun showFinishedNotification(context: Context, timer: Timer) {
         ensureChannel(context)
 
         val title = timer.label.ifBlank { context.getString(R.string.timer_finished_default_title) }
@@ -28,7 +28,10 @@ object TimerNotifier {
         val dismissPi = action(context, timer.id, TimerReceiver.ACTION_DISMISS, 1)
         val addMinutePi = action(context, timer.id, TimerReceiver.ACTION_ADD_MINUTE, 2)
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        // No setDeleteIntent: when we programmatically cancel the notification on
+        // addMinute, some Android versions fire deleteIntent — that would race with
+        // addMinute's RUNNING update and silently flip the timer back to IDLE.
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(text)
@@ -39,33 +42,9 @@ object TimerNotifier {
             .setAutoCancel(false)
             .addAction(0, context.getString(R.string.add_minute), addMinutePi)
             .addAction(0, context.getString(R.string.stop), dismissPi)
-            .setDeleteIntent(dismissPi)
+            .build()
 
-        if (fullScreen) {
-            val fsIntent = Intent(context, TimerExpiredActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(TimerExpiredActivity.EXTRA_TIMER_ID, timer.id)
-            }
-            val fsPi = PendingIntent.getActivity(
-                context,
-                (3_000_000 + timer.id).toInt(),
-                fsIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-            builder.setFullScreenIntent(fsPi, true).setContentIntent(fsPi)
-        }
-
-        NotificationManagerCompat.from(context).notify(notificationId(timer.id), builder.build())
-
-        if (fullScreen) {
-            // Launch the activity directly too — some launchers gate full-screen intents.
-            context.startActivity(
-                Intent(context, TimerExpiredActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra(TimerExpiredActivity.EXTRA_TIMER_ID, timer.id)
-                }
-            )
-        }
+        NotificationManagerCompat.from(context).notify(notificationId(timer.id), notification)
     }
 
     fun cancel(context: Context, timerId: Long) {

@@ -8,14 +8,21 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [ClockEntity::class, AlarmEntity::class, TimerEntity::class],
-    version = 3,
+    entities = [
+        ClockEntity::class,
+        AlarmEntity::class,
+        TimerEntity::class,
+        StopwatchEntity::class,
+        StopwatchLapEntity::class,
+    ],
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun clockDao(): ClockDao
     abstract fun alarmDao(): AlarmDao
     abstract fun timerDao(): TimerDao
+    abstract fun stopwatchDao(): StopwatchDao
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
@@ -47,13 +54,41 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v3 → v4: introduces stopwatches + stopwatch_laps.
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS stopwatches (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        label TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        startedAtMillis INTEGER,
+                        accumulatedMillis INTEGER NOT NULL,
+                        sortOrder INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS stopwatch_laps (
+                        stopwatchId INTEGER NOT NULL,
+                        lapNumber INTEGER NOT NULL,
+                        totalElapsedMillis INTEGER NOT NULL,
+                        PRIMARY KEY(stopwatchId, lapNumber)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 "chronoplex.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build().also { instance = it }
         }
     }
