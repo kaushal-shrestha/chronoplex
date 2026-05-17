@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -93,7 +95,7 @@ class AlarmActivity : ComponentActivity() {
                 AlarmScreen(
                     alarm = alarm,
                     onDismiss = { dismiss() },
-                    onSnooze = { snooze() },
+                    onSnooze = { minutes -> snooze(minutes) },
                 )
             }
         }
@@ -129,11 +131,13 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
-    private fun snooze() {
+    private fun snooze(minutes: Int) {
         val app = applicationContext as ZoneAnchorApp
         val current = state.value ?: return finish()
-        app.container.scheduler.snooze(current, minutes = 9)
-        stopServiceAndFinish()
+        lifecycleScope.launch {
+            app.container.scheduler.snooze(current, minutes = minutes)
+            stopServiceAndFinish()
+        }
     }
 
     private fun stopServiceAndFinish() {
@@ -151,7 +155,7 @@ class AlarmActivity : ComponentActivity() {
 private fun AlarmScreen(
     alarm: Alarm?,
     onDismiss: () -> Unit,
-    onSnooze: () -> Unit,
+    onSnooze: (Int) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -205,13 +209,27 @@ private fun AlarmScreen(
                     }
                 }
             }
-            OutlinedButton(
-                onClick = onSnooze,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            ) { Text(stringResource(R.string.snooze)) }
+            Text(
+                stringResource(R.string.snooze_for),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                listOf(1, 5, 10).forEach { mins ->
+                    OutlinedButton(
+                        onClick = { onSnooze(mins) },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.snooze_minutes, mins)) }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
             Button(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -221,6 +239,3 @@ private fun AlarmScreen(
     }
 }
 
-@androidx.compose.runtime.Composable
-private fun stringResource(id: Int): String =
-    androidx.compose.ui.res.stringResource(id)

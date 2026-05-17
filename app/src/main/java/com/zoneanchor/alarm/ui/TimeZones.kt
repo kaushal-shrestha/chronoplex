@@ -61,16 +61,26 @@ object TimeZones {
     private fun loadAll(): List<ZoneOption> {
         val now = Instant.now()
         return ZoneId.getAvailableZoneIds()
-            // Drop legacy aliases (no slash) like "EST", "GMT+1", etc. Keep only canonical region/city ids.
-            .filter { it.contains('/') && !it.startsWith("Etc/") && !it.startsWith("SystemV/") }
+            .filter(::isCanonical)
             .map { id ->
                 val zone = ZoneId.of(id)
                 val offset = zone.rules.getOffset(now).totalSeconds / 60
                 val parts = id.split('/')
-                val region = parts.first()
-                val city = parts.drop(1).joinToString(" / ").replace('_', ' ')
+                val region = if (parts.size == 1) id else parts.first()
+                val city = if (parts.size == 1) id
+                    else parts.drop(1).joinToString(" / ").replace('_', ' ')
                 ZoneOption(id = id, city = city, region = region, offsetMinutes = offset)
             }
             .sortedWith(compareBy({ it.offsetMinutes }, { it.city }))
+    }
+
+    private fun isCanonical(id: String): Boolean {
+        // Keep canonical anchors like UTC and GMT; drop legacy aliases (Etc/*, SystemV/*)
+        // and short three-letter aliases like EST/PST that overlap with full region ids.
+        if (id == "UTC" || id == "GMT") return true
+        if (!id.contains('/')) return false
+        if (id.startsWith("Etc/")) return false
+        if (id.startsWith("SystemV/")) return false
+        return true
     }
 }

@@ -32,6 +32,12 @@ class AlarmRepository(private val dao: AlarmDao) {
 
     suspend fun delete(id: Long) = dao.deleteById(id)
 
+    /** Persist snooze state without re-routing through the rest of upsert's bookkeeping. */
+    suspend fun setSnoozeUntil(id: Long, snoozeUntilMillis: Long?) {
+        val existing = dao.getById(id) ?: return
+        dao.update(existing.copy(snoozeUntilMillis = snoozeUntilMillis))
+    }
+
     private fun Alarm.clean(): Alarm = copy(
         label = Validate.label(label),
         zoneId = Validate.zoneId(zoneId),

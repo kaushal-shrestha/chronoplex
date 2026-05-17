@@ -20,14 +20,32 @@
     <string name="sound">Sound</string>
     <string name="vibration">Vibration</string>
     <string name="zone_source">Zone source</string>
-    <string name="zone_source_added">Only my added zones</string>
-    <string name="zone_source_all">All world zones</string>
+    <string name="zone_source_added">My clocks</string>
+    <string name="zone_source_all">All zones</string>
+    <string name="zone_source_settings">Default zone source for new alarms</string>
+    <string name="first_day_of_week">First day of week</string>
+    <string name="day_monday">Monday</string>
+    <string name="day_sunday">Sunday</string>
 
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>
     <string name="dismiss">Dismiss</string>
     <string name="snooze">Snooze</string>
+    <string name="snooze_for">Snooze for</string>
+    <string name="snooze_minutes">+%1$d min</string>
+    <string name="snoozed_until">Snoozed until %1$s</string>
+    <string name="cancel_snooze">Cancel snooze</string>
+    <string name="snoozed_channel_name">Snoozed alarms</string>
+    <string name="snoozed_channel_description">Persistent indicator while an alarm is snoozed</string>
+    <string name="edit">Edit</string>
+    <string name="more_options">More options</string>
+    <string name="clear_all_clocks">Clear all clocks</string>
+    <string name="clear_all_clocks_message">Remove every clock from the list. Alarms anchored to those zones aren\'t affected. This can\'t be undone.</string>
+    <string name="clear">Clear</string>
+    <string name="reset_clocks">Reset to suggested clocks</string>
+    <string name="reset_clocks_message">Replace the current list with Eastern Time and UTC. Existing alarms aren\'t affected.</string>
+    <string name="reset">Reset</string>
 
     <string name="appearance">Appearance</string>
     <string name="appearance_system">Follow system</string>
@@ -40,7 +58,7 @@
     <string name="empty_alarms_title">No alarms yet</string>
     <string name="empty_alarms_body">Tap the + button to create an alarm anchored to a time zone.</string>
 
-    <string name="local_time">Local time</string>
+    <string name="device_time">Device time</string>
     <string name="next_fires">Fires %1$s</string>
     <string name="never_fires">No days selected</string>
 
@@ -66,8 +84,13 @@
     <string name="alarm_channel_description">Plays ZoneAnchor alarms</string>
     <string name="notification_alarm_text">Alarm anchored to %1$s</string>
 
-    <string name="permission_notifications_rationale">Notifications are off — the full-screen alarm relies on a notification with a full-screen intent. Tap to open settings.</string>
-    <string name="permission_exact_alarm_rationale">Exact alarm permission is required so alarms fire at the scheduled minute. Tap to open settings.</string>
+    <string name="permission_notifications_rationale">Notifications are off — the full-screen alarm relies on a notification with a full-screen intent.</string>
+    <string name="permission_exact_alarm_rationale">Exact alarm permission is required so alarms fire at the scheduled minute.</string>
     <string name="grant">Grant</string>
     <string name="open">Open</string>
+    <string name="alarm_readiness">Alarm permissions</string>
+    <string name="alarm_readiness_ready">Alarms ready</string>
+    <string name="alarm_readiness_issues">Alarm setup needs attention</string>
+    <string name="permission_label_exact">Exact alarms</string>
+    <string name="permission_label_notifications">Notifications</string>
 </resources>

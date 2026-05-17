@@ -39,7 +39,7 @@ class AlarmScheduler(private val context: Context) {
         alarmManager.cancel(firePendingIntent(alarmId))
     }
 
-    fun snooze(alarm: Alarm, minutes: Int = 9) {
+    suspend fun snooze(alarm: Alarm, minutes: Int = 9) {
         val triggerMillis = System.currentTimeMillis() + minutes * 60_000L
         val pi = firePendingIntent(alarm.id)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
@@ -50,6 +50,18 @@ class AlarmScheduler(private val context: Context) {
                 pi,
             )
         }
+        // Persist state + surface a low-priority notification with a Cancel action.
+        val app = context.applicationContext as com.zoneanchor.alarm.ZoneAnchorApp
+        app.container.alarmRepo.setSnoozeUntil(alarm.id, triggerMillis)
+        SnoozeNotifier.show(context, alarm.copy(snoozeUntilMillis = triggerMillis), triggerMillis)
+    }
+
+    /** Called when the user taps Cancel on the snoozed notification. Restores the regular schedule. */
+    suspend fun cancelSnooze(alarm: Alarm) {
+        val app = context.applicationContext as com.zoneanchor.alarm.ZoneAnchorApp
+        app.container.alarmRepo.setSnoozeUntil(alarm.id, null)
+        SnoozeNotifier.cancel(context, alarm.id)
+        schedule(alarm.copy(snoozeUntilMillis = null))
     }
 
     private fun firePendingIntent(alarmId: Long): PendingIntent {

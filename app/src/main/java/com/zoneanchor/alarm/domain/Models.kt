@@ -20,19 +20,28 @@ data class Alarm(
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
     val enabled: Boolean = true,
+    /** When this alarm is currently snoozed, the epoch millis at which it will next ring. */
+    val snoozeUntilMillis: Long? = null,
 ) {
     val daysOfWeek: Set<DayOfWeek> get() = DayMask.toDays(daysMask)
     val isOneShot: Boolean get() = daysMask == 0
+    fun isSnoozed(nowMillis: Long = System.currentTimeMillis()): Boolean =
+        (snoozeUntilMillis ?: 0L) > nowMillis
 }
 
 enum class AppearanceMode { SYSTEM, LIGHT, DARK }
 
-enum class ThemePalette(val displayName: String) {
-    Anchor("Anchor (default)"),
-    Sunrise("Sunrise"),
-    Forest("Forest"),
-    Slate("Slate"),
-    Plum("Plum"),
+enum class ThemePalette(val displayName: String, val description: String) {
+    Anchor("Anchor", "Material You on Android 12+, deep navy fallback elsewhere"),
+    Daybreak("Daybreak", "Clean paper, deep ink, and calm teal"),
+    Harbor("Harbor", "Soft blue-gray with a crisp marine accent"),
+    Grove("Grove", "A green workspace with warm ivory surfaces"),
+    Ember("Ember", "Warm rose accents on a quiet neutral base"),
+    Twilight("Twilight", "Cool slate tones with a bright evening accent"),
+    Sunrise("Sunrise", "Warm orange tones for early risers"),
+    Forest("Forest", "Deep evergreen with a calming spread"),
+    Slate("Slate", "Cool grey neutrals for focus"),
+    Plum("Plum", "Deep purple accents on light"),
 }
 
 object DayMask {

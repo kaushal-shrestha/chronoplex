@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -35,6 +36,7 @@ import com.zoneanchor.alarm.data.AlarmZoneSource
 import com.zoneanchor.alarm.domain.AppearanceMode
 import com.zoneanchor.alarm.domain.ThemePalette
 import com.zoneanchor.alarm.ui.SettingsViewModel
+import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -80,9 +82,25 @@ fun SettingsScreen(vm: SettingsViewModel) {
                         )
                     }
                 }
+                Spacer(Modifier.height(8.dp))
+                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            state.palette.displayName,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            state.palette.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
             item {
-                SectionLabel(R.string.zone_source)
+                SectionLabel(R.string.zone_source_settings)
                 Column {
                     AlarmZoneSourceRow(
                         label = stringResource(R.string.zone_source_added),
@@ -94,6 +112,25 @@ fun SettingsScreen(vm: SettingsViewModel) {
                         selected = state.alarmZoneSource == AlarmZoneSource.ALL_ZONES,
                         onClick = { vm.setZoneSource(AlarmZoneSource.ALL_ZONES) },
                     )
+                }
+            }
+            item {
+                SectionLabel(R.string.first_day_of_week)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val options = listOf(DayOfWeek.MONDAY, DayOfWeek.SUNDAY)
+                    options.forEachIndexed { i, d ->
+                        SegmentedButton(
+                            selected = state.firstDayOfWeek == d,
+                            onClick = { vm.setFirstDayOfWeek(d) },
+                            shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                        ) {
+                            Text(when (d) {
+                                DayOfWeek.MONDAY -> stringResource(R.string.day_monday)
+                                DayOfWeek.SUNDAY -> stringResource(R.string.day_sunday)
+                                else -> d.name
+                            })
+                        }
+                    }
                 }
             }
         }

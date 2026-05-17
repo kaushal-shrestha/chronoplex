@@ -16,7 +16,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -26,11 +30,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +50,9 @@ import com.zoneanchor.alarm.alarm.AlarmScheduler
 import com.zoneanchor.alarm.domain.Alarm
 import com.zoneanchor.alarm.domain.DayMask
 import com.zoneanchor.alarm.ui.AlarmsViewModel
+import com.zoneanchor.alarm.ui.needsExactAlarmGrant
+import com.zoneanchor.alarm.ui.needsNotificationGrant
+import com.zoneanchor.alarm.ui.openAppNotificationSettings
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalTime
@@ -54,13 +64,33 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AlarmsScreen(
     vm: AlarmsViewModel,
-    permissionBanner: @Composable () -> Unit,
+    onOpenExactAlarmSettings: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (Alarm) -> Unit,
 ) {
     val alarms by vm.alarms.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    val exactOk = remember { !needsExactAlarmGrant(context) }
+    val notifOk = remember { !needsNotificationGrant(context) }
+    val allPermsOk = exactOk && notifOk
+
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.tab_alarms)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.tab_alarms)) },
+                actions = {
+                    IconButton(onClick = { showPermissionDialog = true }) {
+                        Icon(
+                            if (allPermsOk) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = stringResource(R.string.alarm_readiness),
+                            tint = if (allPermsOk) MaterialTheme.colorScheme.primary
+                                   else MaterialTheme.colorScheme.error,
+                        )
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAdd) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_alarm))
@@ -73,7 +103,6 @@ fun AlarmsScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                item { permissionBanner() }
                 if (alarms.isEmpty()) {
                     item { EmptyState(R.string.empty_alarms_title, R.string.empty_alarms_body) }
                 } else {
@@ -87,6 +116,80 @@ fun AlarmsScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (showPermissionDialog) {
+        PermissionStatusDialog(
+            exactOk = exactOk,
+            notifOk = notifOk,
+            onOpenExactSettings = { showPermissionDialog = false; onOpenExactAlarmSettings() },
+            onOpenNotificationSettings = {
+                showPermissionDialog = false
+                openAppNotificationSettings(context)
+            },
+            onDismiss = { showPermissionDialog = false },
+        )
+    }
+}
+
+@Composable
+private fun PermissionStatusDialog(
+    exactOk: Boolean,
+    notifOk: Boolean,
+    onOpenExactSettings: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.alarm_readiness)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                PermissionLine(
+                    label = stringResource(R.string.permission_label_exact),
+                    ok = exactOk,
+                    rationale = stringResource(R.string.permission_exact_alarm_rationale),
+                    actionLabel = stringResource(R.string.grant),
+                    onAction = onOpenExactSettings,
+                )
+                PermissionLine(
+                    label = stringResource(R.string.permission_label_notifications),
+                    ok = notifOk,
+                    rationale = stringResource(R.string.permission_notifications_rationale),
+                    actionLabel = stringResource(R.string.open),
+                    onAction = onOpenNotificationSettings,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dismiss)) }
+        },
+    )
+}
+
+@Composable
+private fun PermissionLine(
+    label: String,
+    ok: Boolean,
+    rationale: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(
+                if (ok) Icons.Default.CheckCircle else Icons.Default.Warning,
+                contentDescription = null,
+                tint = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+            Text(label, style = MaterialTheme.typography.titleSmall)
+        }
+        if (!ok) {
+            Text(rationale, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 4.dp))
+            Button(onClick = onAction) { Text(actionLabel) }
         }
     }
 }
@@ -142,10 +245,12 @@ private fun AlarmRow(
                     modifier = Modifier.weight(1f),
                 )
                 if (alarm.enabled) {
+                    val snoozed = alarm.isSnoozed()
                     Text(
-                        nextFireText(alarm),
+                        if (snoozed) snoozedText(alarm) else nextFireText(alarm),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = if (snoozed) MaterialTheme.colorScheme.tertiary
+                                else MaterialTheme.colorScheme.primary,
                     )
                 }
                 IconButton(onClick = onDelete) {
@@ -181,6 +286,15 @@ private fun shortDayName(d: java.time.DayOfWeek): String = when (d) {
     java.time.DayOfWeek.FRIDAY -> stringResource(R.string.day_fri)
     java.time.DayOfWeek.SATURDAY -> stringResource(R.string.day_sat)
     java.time.DayOfWeek.SUNDAY -> stringResource(R.string.day_sun)
+}
+
+@Composable
+private fun snoozedText(alarm: Alarm): String {
+    val zone = runCatching { ZoneId.of(alarm.zoneId) }.getOrElse { ZoneId.systemDefault() }
+    val until = alarm.snoozeUntilMillis ?: return ""
+    val ts = ZonedDateTime.ofInstant(Instant.ofEpochMilli(until), zone)
+    val fmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
+    return stringResource(R.string.snoozed_until, fmt.format(ts))
 }
 
 @Composable

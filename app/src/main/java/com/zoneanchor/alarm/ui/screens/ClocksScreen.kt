@@ -15,9 +15,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -25,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,8 +64,38 @@ fun ClocksScreen(
     onEdit: (Clock) -> Unit,
 ) {
     val clocks by vm.clocks.collectAsState()
+    var menuOpen by remember { mutableStateOf(false) }
+    var confirmClearAll by remember { mutableStateOf(false) }
+    var confirmReset by remember { mutableStateOf(false) }
+
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.tab_clocks)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.tab_clocks)) },
+                actions = {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.reset_clocks)) },
+                            onClick = {
+                                menuOpen = false
+                                confirmReset = true
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.clear_all_clocks)) },
+                            onClick = {
+                                menuOpen = false
+                                confirmClearAll = true
+                            },
+                            enabled = clocks.isNotEmpty(),
+                        )
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAdd) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_clock))
@@ -73,6 +109,44 @@ fun ClocksScreen(
                 onDelete = { vm.delete(it.id) },
             )
         }
+    }
+
+    if (confirmClearAll) {
+        AlertDialog(
+            onDismissRequest = { confirmClearAll = false },
+            title = { Text(stringResource(R.string.clear_all_clocks)) },
+            text = { Text(stringResource(R.string.clear_all_clocks_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmClearAll = false
+                    vm.deleteAll()
+                }) { Text(stringResource(R.string.clear)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearAll = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text(stringResource(R.string.reset_clocks)) },
+            text = { Text(stringResource(R.string.reset_clocks_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmReset = false
+                    vm.resetToDefaults()
+                }) { Text(stringResource(R.string.reset)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReset = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 
@@ -109,29 +183,41 @@ private fun ClocksList(
 
 @Composable
 private fun LocalTimeCard(now: ZonedDateTime) {
+    val fmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
+    val dateFmt = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                stringResource(R.string.local_time),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(Modifier.height(4.dp))
-            val fmt = remember { DateTimeFormatter.ofPattern("h:mm:ss a") }
-            Text(
-                fmt.format(now),
-                fontSize = 36.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Text(
-                ZoneId.systemDefault().id,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.device_time),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    ZoneId.systemDefault().id,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    dateFmt.format(now),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    fmt.format(now),
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
         }
     }
 }
@@ -184,6 +270,13 @@ private fun ClockRow(
                     zoneTime?.let { fmt.format(it) } ?: "—",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Medium,
+                )
+            }
+            IconButton(onClick = onClick) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = stringResource(R.string.edit_clock),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             IconButton(onClick = onDelete) {
