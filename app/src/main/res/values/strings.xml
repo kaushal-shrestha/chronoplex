@@ -66,7 +66,8 @@
     <string name="alarm_channel_description">Plays ZoneAnchor alarms</string>
     <string name="notification_alarm_text">Alarm anchored to %1$s</string>
 
-    <string name="permission_notifications_rationale">Notifications are required so alarms can ring.</string>
+    <string name="permission_notifications_rationale">Notifications are off — the full-screen alarm relies on a notification with a full-screen intent. Tap to open settings.</string>
     <string name="permission_exact_alarm_rationale">Exact alarm permission is required so alarms fire at the scheduled minute. Tap to open settings.</string>
     <string name="grant">Grant</string>
+    <string name="open">Open</string>
 </resources>

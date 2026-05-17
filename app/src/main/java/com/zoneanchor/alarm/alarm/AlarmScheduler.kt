@@ -8,7 +8,8 @@ import android.os.Build
 import com.zoneanchor.alarm.MainActivity
 import com.zoneanchor.alarm.domain.Alarm
 import com.zoneanchor.alarm.domain.DayMask
-import java.time.LocalTime
+import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
@@ -80,27 +81,39 @@ class AlarmScheduler(private val context: Context) {
     }
 
     companion object {
-        /** Returns the next epoch-millis this alarm should fire at, or null if it never will. */
+        /**
+         * Returns the next epoch-millis this alarm should fire at, or null if it never will.
+         *
+         * Walks forward up to 8 days from `fromMillis` in the alarm's zone. Each candidate
+         * is validated against the zone's DST rules:
+         *   - Spring-forward: if the wall-clock time doesn't exist that day (e.g., 02:30 on
+         *     the second Sunday of March in America/New_York), the day is skipped — the
+         *     alarm is anchored to a wall-clock time, not an instant.
+         *   - Fall-back: when the wall-clock time exists twice, the earlier (still-DST)
+         *     occurrence is chosen.
+         */
         fun nextTriggerMillis(alarm: Alarm, fromMillis: Long = System.currentTimeMillis()): Long? {
             val zone = runCatching { ZoneId.of(alarm.zoneId) }.getOrElse { ZoneId.systemDefault() }
-            val now = ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(fromMillis), zone)
-            val time = LocalTime.of(alarm.hour, alarm.minute)
+            val nowInstant = Instant.ofEpochMilli(fromMillis)
+            val zoneNow = nowInstant.atZone(zone)
+            val oneShot = alarm.isOneShot
 
-            if (alarm.isOneShot) {
-                var candidate = now.with(time).withSecond(0).withNano(0)
-                if (!candidate.isAfter(now)) candidate = candidate.plusDays(1)
+            for (offset in 0..8) {
+                val local = zoneNow.toLocalDate().plusDays(offset.toLong())
+                    .atTime(alarm.hour, alarm.minute)
+                val candidate = candidateOrNull(local, zone) ?: continue
+                if (!candidate.toInstant().isAfter(nowInstant)) continue
+                if (!oneShot && !DayMask.contains(alarm.daysMask, candidate.dayOfWeek)) continue
                 return candidate.toInstant().toEpochMilli()
             }
-
-            // Look up to 8 days ahead for the next enabled day-of-week.
-            for (offset in 0..8) {
-                val candidate = now.plusDays(offset.toLong()).with(time).withSecond(0).withNano(0)
-                if (!candidate.isAfter(now)) continue
-                if (DayMask.contains(alarm.daysMask, candidate.dayOfWeek)) {
-                    return candidate.toInstant().toEpochMilli()
-                }
-            }
             return null
+        }
+
+        private fun candidateOrNull(local: LocalDateTime, zoneId: ZoneId): ZonedDateTime? {
+            val offsets = zoneId.rules.getValidOffsets(local)
+            if (offsets.isEmpty()) return null
+            val candidate = ZonedDateTime.ofLocal(local, zoneId, offsets.first())
+            return if (candidate.hour == local.hour && candidate.minute == local.minute) candidate else null
         }
     }
 }
