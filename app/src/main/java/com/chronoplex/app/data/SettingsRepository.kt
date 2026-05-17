@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.chronoplex.app.domain.AppearanceMode
 import com.chronoplex.app.domain.ThemePalette
+import com.chronoplex.app.domain.TimerFinishMode
 import java.time.DayOfWeek
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -20,11 +21,13 @@ class SettingsRepository(private val context: Context) {
     private val KEY_PALETTE = stringPreferencesKey("theme_palette")
     private val KEY_ALARM_ZONE_SOURCE = stringPreferencesKey("alarm_zone_source")
     private val KEY_FIRST_DAY_OF_WEEK = stringPreferencesKey("first_day_of_week")
+    private val KEY_TIMER_FINISH_MODE = stringPreferencesKey("timer_finish_mode")
 
     val appearance: Flow<AppearanceMode> = store.data.map { it.readAppearance() }
     val palette: Flow<ThemePalette> = store.data.map { it.readPalette() }
     val alarmZoneSource: Flow<AlarmZoneSource> = store.data.map { it.readZoneSource() }
     val firstDayOfWeek: Flow<DayOfWeek> = store.data.map { it.readFirstDayOfWeek() }
+    val timerFinishMode: Flow<TimerFinishMode> = store.data.map { it.readTimerFinishMode() }
 
     suspend fun setAppearance(mode: AppearanceMode) {
         store.edit { it[KEY_APPEARANCE] = mode.name }
@@ -42,6 +45,10 @@ class SettingsRepository(private val context: Context) {
         store.edit { it[KEY_FIRST_DAY_OF_WEEK] = day.name }
     }
 
+    suspend fun setTimerFinishMode(mode: TimerFinishMode) {
+        store.edit { it[KEY_TIMER_FINISH_MODE] = mode.name }
+    }
+
     private fun Preferences.readAppearance(): AppearanceMode =
         this[KEY_APPEARANCE]?.let { runCatching { AppearanceMode.valueOf(it) }.getOrNull() } ?: AppearanceMode.SYSTEM
 
@@ -53,6 +60,9 @@ class SettingsRepository(private val context: Context) {
 
     private fun Preferences.readFirstDayOfWeek(): DayOfWeek =
         this[KEY_FIRST_DAY_OF_WEEK]?.let { runCatching { DayOfWeek.valueOf(it) }.getOrNull() } ?: DayOfWeek.MONDAY
+
+    private fun Preferences.readTimerFinishMode(): TimerFinishMode =
+        this[KEY_TIMER_FINISH_MODE]?.let { runCatching { TimerFinishMode.valueOf(it) }.getOrNull() } ?: TimerFinishMode.NOTIFICATION
 }
 
 enum class AlarmZoneSource { ADDED_CLOCKS, ALL_ZONES }

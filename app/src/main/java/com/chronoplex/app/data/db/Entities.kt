@@ -4,6 +4,9 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.domain.Clock
+import com.chronoplex.app.domain.Timer
+import com.chronoplex.app.domain.TimerFinishMode
+import com.chronoplex.app.domain.TimerState
 
 @Entity(tableName = "clocks")
 data class ClockEntity(
@@ -62,6 +65,42 @@ data class AlarmEntity(
             vibrationEnabled = a.vibrationEnabled,
             enabled = a.enabled,
             snoozeUntilMillis = a.snoozeUntilMillis,
+        )
+    }
+}
+
+@Entity(tableName = "timers")
+data class TimerEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val label: String,
+    val durationMillis: Long,
+    val state: String,
+    val endsAtMillis: Long?,
+    val pausedRemainingMillis: Long?,
+    val finishMode: String,
+    val sortOrder: Long,
+) {
+    fun toDomain() = Timer(
+        id = id,
+        label = label,
+        durationMillis = durationMillis,
+        state = runCatching { TimerState.valueOf(state) }.getOrElse { TimerState.IDLE },
+        endsAtMillis = endsAtMillis,
+        pausedRemainingMillis = pausedRemainingMillis,
+        finishMode = runCatching { TimerFinishMode.valueOf(finishMode) }.getOrElse { TimerFinishMode.NOTIFICATION },
+        sortOrder = sortOrder,
+    )
+
+    companion object {
+        fun fromDomain(t: Timer) = TimerEntity(
+            id = t.id,
+            label = t.label,
+            durationMillis = t.durationMillis,
+            state = t.state.name,
+            endsAtMillis = t.endsAtMillis,
+            pausedRemainingMillis = t.pausedRemainingMillis,
+            finishMode = t.finishMode.name,
+            sortOrder = t.sortOrder,
         )
     }
 }

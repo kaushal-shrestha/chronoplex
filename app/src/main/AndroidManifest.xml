@@ -70,5 +70,19 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
+        <activity
+            android:name=".timer.TimerExpiredActivity"
+            android:exported="false"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Chronoplex.Alarm" />
+
+        <receiver
+            android:name=".timer.TimerReceiver"
+            android:exported="false" />
+
     </application>
 </manifest>
