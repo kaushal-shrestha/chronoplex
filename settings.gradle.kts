@@ -17,5 +17,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ZoneAnchor Alarm"
+rootProject.name = "Chronoplex"
 include(":app")

@@ -1,11 +1,11 @@
-# ZoneAnchor Alarm Feature Requests
+# Chronoplex Feature Requests
 
 This file captures the user-facing product requests discussed so far, separate from implementation details.
 
 ## Naming and Brand
 
 - Rename the app away from "Universal Clock" to avoid copyright/trademark risk.
-- Use **ZoneAnchor Alarm** as the app name.
+- Use **Chronoplex** as the app name.
 - Keep the name clear enough that users understand the app is related to alarms and time zones.
 
 ## Clocks

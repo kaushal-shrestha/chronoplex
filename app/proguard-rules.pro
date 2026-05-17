@@ -1,2 +1,2 @@
-# Default ProGuard rules for ZoneAnchor Alarm
+# Default ProGuard rules for Chronoplex
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
