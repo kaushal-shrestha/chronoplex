@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -133,7 +134,44 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     }
                 }
             }
+            item {
+                SectionLabel(R.string.grouping_section)
+                GroupingToggleRow(
+                    label = stringResource(R.string.grouping_clocks),
+                    checked = state.clocksGrouping,
+                    onCheckedChange = vm::setClocksGrouping,
+                )
+                GroupingToggleRow(
+                    label = stringResource(R.string.grouping_alarms),
+                    checked = state.alarmsGrouping,
+                    onCheckedChange = vm::setAlarmsGrouping,
+                )
+                GroupingToggleRow(
+                    label = stringResource(R.string.grouping_timers),
+                    checked = state.timersGrouping,
+                    onCheckedChange = vm::setTimersGrouping,
+                )
+                GroupingToggleRow(
+                    label = stringResource(R.string.grouping_stopwatches),
+                    checked = state.stopwatchesGrouping,
+                    onCheckedChange = vm::setStopwatchesGrouping,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun GroupingToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

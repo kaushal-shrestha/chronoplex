@@ -2,7 +2,9 @@ package com.chronoplex.app.data
 
 import com.chronoplex.app.data.db.StopwatchDao
 import com.chronoplex.app.data.db.StopwatchEntity
+import com.chronoplex.app.data.db.StopwatchGroupEntity
 import com.chronoplex.app.data.db.StopwatchLapEntity
+import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Stopwatch
 import com.chronoplex.app.domain.StopwatchLap
 import com.chronoplex.app.domain.StopwatchState
@@ -61,6 +63,33 @@ class StopwatchRepository(private val dao: StopwatchDao) {
     }
 
     suspend fun clearLaps(stopwatchId: Long) = dao.deleteLaps(stopwatchId)
+
+    // ----- Grouping -----
+
+    fun observeGroups(): Flow<List<Group>> =
+        dao.observeGroups().map { list -> list.map { it.toDomain() } }
+
+    suspend fun createGroup(name: String): Long {
+        val cleanName = Validate.label(name).ifBlank { "Group" }
+        return dao.upsertGroup(StopwatchGroupEntity(name = cleanName, sortOrder = System.currentTimeMillis(), collapsed = false))
+    }
+
+    suspend fun renameGroup(id: Long, name: String) {
+        val existing = dao.getGroupById(id) ?: return
+        dao.updateGroup(existing.copy(name = Validate.label(name).ifBlank { existing.name }))
+    }
+
+    suspend fun setCollapsed(id: Long, collapsed: Boolean) {
+        val existing = dao.getGroupById(id) ?: return
+        dao.updateGroup(existing.copy(collapsed = collapsed))
+    }
+
+    suspend fun deleteGroup(id: Long) {
+        dao.unassignGroup(id)
+        dao.deleteGroupById(id)
+    }
+
+    suspend fun assignToGroup(id: Long, groupId: Long?) = dao.assignToGroup(id, groupId)
 
     private fun Stopwatch.clean(): Stopwatch = copy(
         label = Validate.label(label),

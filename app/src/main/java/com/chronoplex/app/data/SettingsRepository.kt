@@ -2,6 +2,7 @@ package com.chronoplex.app.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -22,12 +23,20 @@ class SettingsRepository(private val context: Context) {
     private val KEY_ALARM_ZONE_SOURCE = stringPreferencesKey("alarm_zone_source")
     private val KEY_FIRST_DAY_OF_WEEK = stringPreferencesKey("first_day_of_week")
     private val KEY_TIMER_FINISH_MODE = stringPreferencesKey("timer_finish_mode")
+    private val KEY_CLOCKS_GROUPING = booleanPreferencesKey("clocks_grouping_enabled")
+    private val KEY_ALARMS_GROUPING = booleanPreferencesKey("alarms_grouping_enabled")
+    private val KEY_TIMERS_GROUPING = booleanPreferencesKey("timers_grouping_enabled")
+    private val KEY_STOPWATCHES_GROUPING = booleanPreferencesKey("stopwatches_grouping_enabled")
 
     val appearance: Flow<AppearanceMode> = store.data.map { it.readAppearance() }
     val palette: Flow<ThemePalette> = store.data.map { it.readPalette() }
     val alarmZoneSource: Flow<AlarmZoneSource> = store.data.map { it.readZoneSource() }
     val firstDayOfWeek: Flow<DayOfWeek> = store.data.map { it.readFirstDayOfWeek() }
     val timerFinishMode: Flow<TimerFinishMode> = store.data.map { it.readTimerFinishMode() }
+    val clocksGroupingEnabled: Flow<Boolean> = store.data.map { it[KEY_CLOCKS_GROUPING] ?: false }
+    val alarmsGroupingEnabled: Flow<Boolean> = store.data.map { it[KEY_ALARMS_GROUPING] ?: false }
+    val timersGroupingEnabled: Flow<Boolean> = store.data.map { it[KEY_TIMERS_GROUPING] ?: false }
+    val stopwatchesGroupingEnabled: Flow<Boolean> = store.data.map { it[KEY_STOPWATCHES_GROUPING] ?: false }
 
     suspend fun setAppearance(mode: AppearanceMode) {
         store.edit { it[KEY_APPEARANCE] = mode.name }
@@ -47,6 +56,22 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setTimerFinishMode(mode: TimerFinishMode) {
         store.edit { it[KEY_TIMER_FINISH_MODE] = mode.name }
+    }
+
+    suspend fun setClocksGroupingEnabled(enabled: Boolean) {
+        store.edit { it[KEY_CLOCKS_GROUPING] = enabled }
+    }
+
+    suspend fun setAlarmsGroupingEnabled(enabled: Boolean) {
+        store.edit { it[KEY_ALARMS_GROUPING] = enabled }
+    }
+
+    suspend fun setTimersGroupingEnabled(enabled: Boolean) {
+        store.edit { it[KEY_TIMERS_GROUPING] = enabled }
+    }
+
+    suspend fun setStopwatchesGroupingEnabled(enabled: Boolean) {
+        store.edit { it[KEY_STOPWATCHES_GROUPING] = enabled }
     }
 
     private fun Preferences.readAppearance(): AppearanceMode =

@@ -18,10 +18,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -51,6 +54,7 @@ import com.chronoplex.app.R
 import com.chronoplex.app.alarm.AlarmScheduler
 import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.domain.DayMask
+import com.chronoplex.app.domain.Group
 import com.chronoplex.app.ui.AlarmsViewModel
 import com.chronoplex.app.ui.needsExactAlarmGrant
 import com.chronoplex.app.ui.needsNotificationGrant
@@ -71,11 +75,16 @@ fun AlarmsScreen(
     onEdit: (Alarm) -> Unit,
 ) {
     val alarms by vm.alarms.collectAsState()
+    val groups by vm.groups.collectAsState()
+    val groupingEnabled by vm.groupingEnabled.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     var showPermissionDialog by remember { mutableStateOf(false) }
     var exactOk by remember { mutableStateOf(!needsExactAlarmGrant(context)) }
     var notifOk by remember { mutableStateOf(!needsNotificationGrant(context)) }
     val allPermsOk = exactOk && notifOk
+    var menuOpen by remember { mutableStateOf(false) }
+    var manageGroupsOpen by remember { mutableStateOf(false) }
+    var moveTarget by remember { mutableStateOf<Alarm?>(null) }
 
     // Re-check permissions whenever we come back to the foreground — e.g. after the
     // user toggles a permission in system settings and returns.
@@ -97,6 +106,17 @@ fun AlarmsScreen(
                                    else MaterialTheme.colorScheme.error,
                         )
                     }
+                    if (groupingEnabled) {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.manage_groups)) },
+                                onClick = { menuOpen = false; manageGroupsOpen = true },
+                            )
+                        }
+                    }
                 },
             )
         },
@@ -114,14 +134,50 @@ fun AlarmsScreen(
             ) {
                 if (alarms.isEmpty()) {
                     item { EmptyState(R.string.empty_alarms_title, R.string.empty_alarms_body) }
-                } else {
+                } else if (!groupingEnabled) {
                     items(alarms, key = { it.id }) { alarm ->
                         AlarmRow(
                             alarm = alarm,
+                            groupingEnabled = false,
                             onClick = { onEdit(alarm) },
                             onToggle = { vm.toggleEnabled(alarm) },
                             onDelete = { vm.delete(alarm) },
+                            onMove = { moveTarget = alarm },
                         )
+                    }
+                } else {
+                    val byGroup = alarms.groupBy { it.groupId }
+                    groups.forEach { g ->
+                        val members = byGroup[g.id].orEmpty()
+                        item(key = "group-${g.id}") {
+                            GroupHeader(g, members.size, onToggleCollapsed = { vm.toggleCollapsed(g) })
+                        }
+                        if (!g.collapsed) {
+                            items(members, key = { "g${g.id}-${it.id}" }) { alarm ->
+                                AlarmRow(
+                                    alarm = alarm,
+                                    groupingEnabled = true,
+                                    onClick = { onEdit(alarm) },
+                                    onToggle = { vm.toggleEnabled(alarm) },
+                                    onDelete = { vm.delete(alarm) },
+                                    onMove = { moveTarget = alarm },
+                                )
+                            }
+                        }
+                    }
+                    val ungrouped = byGroup[null].orEmpty()
+                    if (ungrouped.isNotEmpty()) {
+                        item(key = "ungrouped") { UngroupedHeader(ungrouped.size) }
+                        items(ungrouped, key = { "u-${it.id}" }) { alarm ->
+                            AlarmRow(
+                                alarm = alarm,
+                                groupingEnabled = true,
+                                onClick = { onEdit(alarm) },
+                                onToggle = { vm.toggleEnabled(alarm) },
+                                onDelete = { vm.delete(alarm) },
+                                onMove = { moveTarget = alarm },
+                            )
+                        }
                     }
                 }
             }
@@ -138,6 +194,25 @@ fun AlarmsScreen(
                 openAppNotificationSettings(context)
             },
             onDismiss = { showPermissionDialog = false },
+        )
+    }
+
+    if (manageGroupsOpen) {
+        ManageGroupsDialog(
+            groups = groups,
+            onCreate = { vm.createGroup(it) },
+            onRename = { id, name -> vm.renameGroup(id, name) },
+            onDelete = { vm.deleteGroup(it) },
+            onDismiss = { manageGroupsOpen = false },
+        )
+    }
+    moveTarget?.let { target ->
+        MoveToGroupDialog(
+            currentGroupId = target.groupId,
+            groups = groups,
+            onMove = { gid -> vm.moveToGroup(target.id, gid); moveTarget = null },
+            onCreateAndMove = { name -> vm.createGroup(name); moveTarget = null },
+            onDismiss = { moveTarget = null },
         )
     }
 }
@@ -206,9 +281,11 @@ private fun PermissionLine(
 @Composable
 private fun AlarmRow(
     alarm: Alarm,
+    groupingEnabled: Boolean,
     onClick: () -> Unit,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
+    onMove: () -> Unit,
 ) {
     val timeFmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
     val timeText = remember(alarm.hour, alarm.minute) {
@@ -261,6 +338,15 @@ private fun AlarmRow(
                         color = if (snoozed) MaterialTheme.colorScheme.tertiary
                                 else MaterialTheme.colorScheme.primary,
                     )
+                }
+                if (groupingEnabled) {
+                    IconButton(onClick = onMove) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.move_to_group),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 IconButton(onClick = onDelete) {
                     Icon(

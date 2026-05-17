@@ -17,10 +17,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -45,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chronoplex.app.R
+import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Timer
 import com.chronoplex.app.domain.TimerState
 import com.chronoplex.app.ui.TimersViewModel
@@ -58,6 +62,12 @@ fun TimersScreen(
     onEdit: (Timer) -> Unit,
 ) {
     val timers by vm.timers.collectAsState()
+    val groups by vm.groups.collectAsState()
+    val groupingEnabled by vm.groupingEnabled.collectAsState()
+    var menuOpen by remember { mutableStateOf(false) }
+    var manageGroupsOpen by remember { mutableStateOf(false) }
+    var moveTarget by remember { mutableStateOf<Timer?>(null) }
+
     // Single per-screen tick drives every running timer's countdown.
     val now by produceState(initialValue = System.currentTimeMillis()) {
         while (true) {
@@ -67,7 +77,24 @@ fun TimersScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.tab_timers)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.tab_timers)) },
+                actions = {
+                    if (groupingEnabled) {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.manage_groups)) },
+                                onClick = { menuOpen = false; manageGroupsOpen = true },
+                            )
+                        }
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAdd) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_timer))
@@ -82,11 +109,12 @@ fun TimersScreen(
             ) {
                 if (timers.isEmpty()) {
                     item { EmptyState(R.string.empty_timers_title, R.string.empty_timers_body) }
-                } else {
+                } else if (!groupingEnabled) {
                     items(timers, key = { it.id }) { timer ->
                         TimerRow(
                             timer = timer,
                             nowMillis = now,
+                            groupingEnabled = false,
                             onClick = { onEdit(timer) },
                             onPrimaryAction = {
                                 when (timer.state) {
@@ -96,11 +124,79 @@ fun TimersScreen(
                             },
                             onReset = { vm.reset(timer) },
                             onDelete = { vm.delete(timer) },
+                            onMove = { moveTarget = timer },
                         )
+                    }
+                } else {
+                    val byGroup = timers.groupBy { it.groupId }
+                    groups.forEach { g ->
+                        val members = byGroup[g.id].orEmpty()
+                        item(key = "group-${g.id}") {
+                            GroupHeader(g, members.size, onToggleCollapsed = { vm.toggleCollapsed(g) })
+                        }
+                        if (!g.collapsed) {
+                            items(members, key = { "g${g.id}-${it.id}" }) { timer ->
+                                TimerRow(
+                                    timer = timer,
+                                    nowMillis = now,
+                                    groupingEnabled = true,
+                                    onClick = { onEdit(timer) },
+                                    onPrimaryAction = {
+                                        when (timer.state) {
+                                            TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
+                                            TimerState.RUNNING -> vm.pause(timer)
+                                        }
+                                    },
+                                    onReset = { vm.reset(timer) },
+                                    onDelete = { vm.delete(timer) },
+                                    onMove = { moveTarget = timer },
+                                )
+                            }
+                        }
+                    }
+                    val ungrouped = byGroup[null].orEmpty()
+                    if (ungrouped.isNotEmpty()) {
+                        item(key = "ungrouped") { UngroupedHeader(ungrouped.size) }
+                        items(ungrouped, key = { "u-${it.id}" }) { timer ->
+                            TimerRow(
+                                timer = timer,
+                                nowMillis = now,
+                                groupingEnabled = true,
+                                onClick = { onEdit(timer) },
+                                onPrimaryAction = {
+                                    when (timer.state) {
+                                        TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
+                                        TimerState.RUNNING -> vm.pause(timer)
+                                    }
+                                },
+                                onReset = { vm.reset(timer) },
+                                onDelete = { vm.delete(timer) },
+                                onMove = { moveTarget = timer },
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (manageGroupsOpen) {
+        ManageGroupsDialog(
+            groups = groups,
+            onCreate = { vm.createGroup(it) },
+            onRename = { id, name -> vm.renameGroup(id, name) },
+            onDelete = { vm.deleteGroup(it) },
+            onDismiss = { manageGroupsOpen = false },
+        )
+    }
+    moveTarget?.let { target ->
+        MoveToGroupDialog(
+            currentGroupId = target.groupId,
+            groups = groups,
+            onMove = { gid -> vm.moveToGroup(target.id, gid); moveTarget = null },
+            onCreateAndMove = { name -> vm.createGroup(name); moveTarget = null },
+            onDismiss = { moveTarget = null },
+        )
     }
 }
 
@@ -108,10 +204,12 @@ fun TimersScreen(
 private fun TimerRow(
     timer: Timer,
     nowMillis: Long,
+    groupingEnabled: Boolean,
     onClick: () -> Unit,
     onPrimaryAction: () -> Unit,
     onReset: () -> Unit,
     onDelete: () -> Unit,
+    onMove: () -> Unit,
 ) {
     val remaining = timer.remainingMillis(nowMillis)
     val progress = if (timer.durationMillis > 0L) {
@@ -158,6 +256,15 @@ private fun TimerRow(
                 }
                 IconButton(onClick = onReset) {
                     Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.reset))
+                }
+                if (groupingEnabled) {
+                    IconButton(onClick = onMove) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.move_to_group),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 IconButton(onClick = onDelete) {
                     Icon(

@@ -14,8 +14,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TimerEntity::class,
         StopwatchEntity::class,
         StopwatchLapEntity::class,
+        ClockGroupEntity::class,
+        AlarmGroupEntity::class,
+        TimerGroupEntity::class,
+        StopwatchGroupEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -82,13 +86,35 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v4 → v5: adds groupId to each entity table + four per-type group tables.
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE clocks ADD COLUMN groupId INTEGER")
+                db.execSQL("ALTER TABLE alarms ADD COLUMN groupId INTEGER")
+                db.execSQL("ALTER TABLE timers ADD COLUMN groupId INTEGER")
+                db.execSQL("ALTER TABLE stopwatches ADD COLUMN groupId INTEGER")
+                listOf("clock_groups", "alarm_groups", "timer_groups", "stopwatch_groups").forEach { table ->
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS $table (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            name TEXT NOT NULL,
+                            sortOrder INTEGER NOT NULL,
+                            collapsed INTEGER NOT NULL
+                        )
+                        """.trimIndent()
+                    )
+                }
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 "chronoplex.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build().also { instance = it }
         }
     }

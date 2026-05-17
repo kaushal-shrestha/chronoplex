@@ -50,6 +50,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.chronoplex.app.R
 import com.chronoplex.app.domain.Clock
+import com.chronoplex.app.domain.Group
 import com.chronoplex.app.ui.ClocksViewModel
 import kotlinx.coroutines.delay
 import java.time.ZoneId
@@ -64,9 +65,13 @@ fun ClocksScreen(
     onEdit: (Clock) -> Unit,
 ) {
     val clocks by vm.clocks.collectAsState()
+    val groups by vm.groups.collectAsState()
+    val groupingEnabled by vm.groupingEnabled.collectAsState()
     var menuOpen by remember { mutableStateOf(false) }
     var confirmClearAll by remember { mutableStateOf(false) }
     var confirmReset by remember { mutableStateOf(false) }
+    var manageGroupsOpen by remember { mutableStateOf(false) }
+    var moveTarget by remember { mutableStateOf<Clock?>(null) }
 
     Scaffold(
         topBar = {
@@ -77,6 +82,12 @@ fun ClocksScreen(
                         Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        if (groupingEnabled) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.manage_groups)) },
+                                onClick = { menuOpen = false; manageGroupsOpen = true },
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.reset_clocks)) },
                             onClick = {
@@ -105,10 +116,38 @@ fun ClocksScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             ClocksList(
                 clocks = clocks,
+                groups = groups,
+                groupingEnabled = groupingEnabled,
                 onEdit = onEdit,
                 onDelete = { vm.delete(it.id) },
+                onMove = { moveTarget = it },
+                onToggleCollapsed = { vm.toggleCollapsed(it) },
             )
         }
+    }
+
+    if (manageGroupsOpen) {
+        ManageGroupsDialog(
+            groups = groups,
+            onCreate = { vm.createGroup(it) },
+            onRename = { id, name -> vm.renameGroup(id, name) },
+            onDelete = { vm.deleteGroup(it) },
+            onDismiss = { manageGroupsOpen = false },
+        )
+    }
+    moveTarget?.let { target ->
+        MoveToGroupDialog(
+            currentGroupId = target.groupId,
+            groups = groups,
+            onMove = { gid -> vm.moveToGroup(target.id, gid); moveTarget = null },
+            onCreateAndMove = { name ->
+                // For simplicity: create the group; the user can re-open the dialog
+                // and pick it. Avoids exposing the new id synchronously.
+                vm.createGroup(name)
+                moveTarget = null
+            },
+            onDismiss = { moveTarget = null },
+        )
     }
 
     if (confirmClearAll) {
@@ -153,8 +192,12 @@ fun ClocksScreen(
 @Composable
 private fun ClocksList(
     clocks: List<Clock>,
+    groups: List<Group>,
+    groupingEnabled: Boolean,
     onEdit: (Clock) -> Unit,
     onDelete: (Clock) -> Unit,
+    onMove: (Clock) -> Unit,
+    onToggleCollapsed: (Group) -> Unit,
 ) {
     var now by remember { mutableStateOf(ZonedDateTime.now()) }
     LaunchedEffect(Unit) {
@@ -172,10 +215,50 @@ private fun ClocksList(
         item { LocalTimeCard(now) }
         if (clocks.isEmpty()) {
             item { EmptyState(R.string.empty_clocks_title, R.string.empty_clocks_body) }
-        } else {
+        } else if (!groupingEnabled) {
             items(clocks, key = { it.id }) { clock ->
-                ClockRow(clock = clock, nowEpochMillis = now.toInstant().toEpochMilli(),
-                    onClick = { onEdit(clock) }, onDelete = { onDelete(clock) })
+                ClockRow(
+                    clock = clock,
+                    nowEpochMillis = now.toInstant().toEpochMilli(),
+                    groupingEnabled = false,
+                    onClick = { onEdit(clock) },
+                    onDelete = { onDelete(clock) },
+                    onMove = { onMove(clock) },
+                )
+            }
+        } else {
+            val byGroup = clocks.groupBy { it.groupId }
+            groups.forEach { g ->
+                val members = byGroup[g.id].orEmpty()
+                item(key = "group-${g.id}") {
+                    GroupHeader(g, members.size, onToggleCollapsed = { onToggleCollapsed(g) })
+                }
+                if (!g.collapsed) {
+                    items(members, key = { "g${g.id}-${it.id}" }) { clock ->
+                        ClockRow(
+                            clock = clock,
+                            nowEpochMillis = now.toInstant().toEpochMilli(),
+                            groupingEnabled = true,
+                            onClick = { onEdit(clock) },
+                            onDelete = { onDelete(clock) },
+                            onMove = { onMove(clock) },
+                        )
+                    }
+                }
+            }
+            val ungrouped = byGroup[null].orEmpty()
+            if (ungrouped.isNotEmpty()) {
+                item(key = "ungrouped") { UngroupedHeader(ungrouped.size) }
+                items(ungrouped, key = { "u-${it.id}" }) { clock ->
+                    ClockRow(
+                        clock = clock,
+                        nowEpochMillis = now.toInstant().toEpochMilli(),
+                        groupingEnabled = true,
+                        onClick = { onEdit(clock) },
+                        onDelete = { onDelete(clock) },
+                        onMove = { onMove(clock) },
+                    )
+                }
             }
         }
     }
@@ -226,8 +309,10 @@ private fun LocalTimeCard(now: ZonedDateTime) {
 private fun ClockRow(
     clock: Clock,
     nowEpochMillis: Long,
+    groupingEnabled: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onMove: () -> Unit,
 ) {
     val zoneTime = remember(clock.zoneId, nowEpochMillis) {
         runCatching {
@@ -278,6 +363,15 @@ private fun ClockRow(
                     contentDescription = stringResource(R.string.edit_clock),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (groupingEnabled) {
+                IconButton(onClick = onMove) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.move_to_group),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             IconButton(onClick = onDelete) {
                 Icon(

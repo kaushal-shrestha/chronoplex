@@ -3,11 +3,20 @@ package com.chronoplex.app.domain
 import java.time.DayOfWeek
 import java.time.ZoneId
 
+/** A user-defined collection that items of one entity type can belong to. */
+data class Group(
+    val id: Long = 0,
+    val name: String,
+    val sortOrder: Long = System.currentTimeMillis(),
+    val collapsed: Boolean = false,
+)
+
 data class Clock(
     val id: Long = 0,
     val label: String,
     val zoneId: String,
     val sortOrder: Long = System.currentTimeMillis(),
+    val groupId: Long? = null,
 )
 
 data class Alarm(
@@ -22,6 +31,7 @@ data class Alarm(
     val enabled: Boolean = true,
     /** When this alarm is currently snoozed, the epoch millis at which it will next ring. */
     val snoozeUntilMillis: Long? = null,
+    val groupId: Long? = null,
 ) {
     val daysOfWeek: Set<DayOfWeek> get() = DayMask.toDays(daysMask)
     val isOneShot: Boolean get() = daysMask == 0
@@ -46,6 +56,7 @@ data class Timer(
     val pausedRemainingMillis: Long? = null,
     val finishMode: TimerFinishMode = TimerFinishMode.NOTIFICATION,
     val sortOrder: Long = System.currentTimeMillis(),
+    val groupId: Long? = null,
 ) {
     /** Remaining millis at [nowMillis] given the current state. */
     fun remainingMillis(nowMillis: Long = System.currentTimeMillis()): Long = when (state) {
@@ -67,6 +78,7 @@ data class Stopwatch(
     /** Sum of completed segments before the current one. */
     val accumulatedMillis: Long = 0L,
     val sortOrder: Long = System.currentTimeMillis(),
+    val groupId: Long? = null,
 ) {
     /** Total elapsed millis at [nowMillis]. */
     fun elapsedMillis(nowMillis: Long = System.currentTimeMillis()): Long = when (state) {

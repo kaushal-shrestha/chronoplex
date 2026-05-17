@@ -30,6 +30,27 @@ interface ClockDao {
 
     @Query("DELETE FROM clocks")
     suspend fun deleteAll()
+
+    @Query("UPDATE clocks SET groupId = :groupId WHERE id = :id")
+    suspend fun assignToGroup(id: Long, groupId: Long?)
+
+    @Query("UPDATE clocks SET groupId = NULL WHERE groupId = :groupId")
+    suspend fun unassignGroup(groupId: Long)
+
+    @Query("SELECT * FROM clock_groups ORDER BY sortOrder ASC")
+    fun observeGroups(): Flow<List<ClockGroupEntity>>
+
+    @Query("SELECT * FROM clock_groups WHERE id = :id")
+    suspend fun getGroupById(id: Long): ClockGroupEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertGroup(group: ClockGroupEntity): Long
+
+    @Update
+    suspend fun updateGroup(group: ClockGroupEntity)
+
+    @Query("DELETE FROM clock_groups WHERE id = :id")
+    suspend fun deleteGroupById(id: Long)
 }
 
 @Dao
@@ -54,6 +75,27 @@ interface AlarmDao {
 
     @Query("DELETE FROM alarms WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("UPDATE alarms SET groupId = :groupId WHERE id = :id")
+    suspend fun assignToGroup(id: Long, groupId: Long?)
+
+    @Query("UPDATE alarms SET groupId = NULL WHERE groupId = :groupId")
+    suspend fun unassignGroup(groupId: Long)
+
+    @Query("SELECT * FROM alarm_groups ORDER BY sortOrder ASC")
+    fun observeGroups(): Flow<List<AlarmGroupEntity>>
+
+    @Query("SELECT * FROM alarm_groups WHERE id = :id")
+    suspend fun getGroupById(id: Long): AlarmGroupEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertGroup(group: AlarmGroupEntity): Long
+
+    @Update
+    suspend fun updateGroup(group: AlarmGroupEntity)
+
+    @Query("DELETE FROM alarm_groups WHERE id = :id")
+    suspend fun deleteGroupById(id: Long)
 }
 
 @Dao
@@ -75,6 +117,27 @@ interface TimerDao {
 
     @Query("DELETE FROM timers WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("UPDATE timers SET groupId = :groupId WHERE id = :id")
+    suspend fun assignToGroup(id: Long, groupId: Long?)
+
+    @Query("UPDATE timers SET groupId = NULL WHERE groupId = :groupId")
+    suspend fun unassignGroup(groupId: Long)
+
+    @Query("SELECT * FROM timer_groups ORDER BY sortOrder ASC")
+    fun observeGroups(): Flow<List<TimerGroupEntity>>
+
+    @Query("SELECT * FROM timer_groups WHERE id = :id")
+    suspend fun getGroupById(id: Long): TimerGroupEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertGroup(group: TimerGroupEntity): Long
+
+    @Update
+    suspend fun updateGroup(group: TimerGroupEntity)
+
+    @Query("DELETE FROM timer_groups WHERE id = :id")
+    suspend fun deleteGroupById(id: Long)
 }
 
 @Dao
@@ -105,4 +168,25 @@ interface StopwatchDao {
 
     @Query("DELETE FROM stopwatch_laps WHERE stopwatchId = :stopwatchId")
     suspend fun deleteLaps(stopwatchId: Long)
+
+    @Query("UPDATE stopwatches SET groupId = :groupId WHERE id = :id")
+    suspend fun assignToGroup(id: Long, groupId: Long?)
+
+    @Query("UPDATE stopwatches SET groupId = NULL WHERE groupId = :groupId")
+    suspend fun unassignGroup(groupId: Long)
+
+    @Query("SELECT * FROM stopwatch_groups ORDER BY sortOrder ASC")
+    fun observeGroups(): Flow<List<StopwatchGroupEntity>>
+
+    @Query("SELECT * FROM stopwatch_groups WHERE id = :id")
+    suspend fun getGroupById(id: Long): StopwatchGroupEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertGroup(group: StopwatchGroupEntity): Long
+
+    @Update
+    suspend fun updateGroup(group: StopwatchGroupEntity)
+
+    @Query("DELETE FROM stopwatch_groups WHERE id = :id")
+    suspend fun deleteGroupById(id: Long)
 }
