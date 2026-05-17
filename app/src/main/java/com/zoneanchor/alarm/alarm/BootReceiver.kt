@@ -28,12 +28,19 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        // On API 31+ the system broadcasts this when the user grants/revokes the
+        // exact-alarm permission. We re-arm so alarms upgrade from the inexact
+        // fallback to setAlarmClock as soon as permission is granted.
+        private const val ACTION_EXACT_ALARM_PERMISSION_CHANGED =
+            "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"
+
         private val HANDLED = setOf(
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_LOCKED_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
             Intent.ACTION_TIMEZONE_CHANGED,
             Intent.ACTION_TIME_CHANGED,
+            ACTION_EXACT_ALARM_PERMISSION_CHANGED,
         )
     }
 }

@@ -24,11 +24,38 @@ object TimeZones {
 
     fun all(): List<ZoneOption> = cache
 
-    fun filter(query: String, restrictTo: Set<String>? = null): List<ZoneOption> {
+    /**
+     * Result of a picker query. When the query is empty we surface a small "pinned"
+     * section (device default + a couple of broadly-useful zones) above the full list.
+     */
+    data class Results(val pinned: List<ZoneOption>, val rest: List<ZoneOption>)
+
+    fun query(query: String, restrictTo: Set<String>? = null): Results {
         val base = if (restrictTo != null) cache.filter { it.id in restrictTo } else cache
-        if (query.isBlank()) return base
-        val q = query.trim().lowercase()
-        return base.filter { it.id.lowercase().contains(q) || it.city.lowercase().contains(q) }
+        if (query.isNotBlank()) {
+            val q = query.trim().lowercase()
+            val matches = base.filter {
+                it.id.lowercase().contains(q) || it.city.lowercase().contains(q)
+            }
+            return Results(pinned = emptyList(), rest = matches)
+        }
+        if (restrictTo != null) return Results(pinned = emptyList(), rest = base)
+
+        val pinnedIds = linkedSetOf(
+            ZoneId.systemDefault().id,
+            "America/New_York",
+            "UTC",
+        )
+        val byId = base.associateBy { it.id }
+        val pinned = pinnedIds.mapNotNull { byId[it] }
+        val pinnedSet = pinned.map { it.id }.toSet()
+        val rest = base.filterNot { it.id in pinnedSet }
+        return Results(pinned = pinned, rest = rest)
+    }
+
+    fun filter(query: String, restrictTo: Set<String>? = null): List<ZoneOption> {
+        val r = query(query, restrictTo)
+        return r.pinned + r.rest
     }
 
     private fun loadAll(): List<ZoneOption> {

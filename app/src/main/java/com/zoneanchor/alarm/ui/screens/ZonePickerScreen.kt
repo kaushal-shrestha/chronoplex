@@ -34,6 +34,32 @@ import androidx.compose.ui.unit.dp
 import com.zoneanchor.alarm.AppContainer
 import com.zoneanchor.alarm.R
 import com.zoneanchor.alarm.ui.TimeZones
+import com.zoneanchor.alarm.ui.ZoneOption
+
+@Composable
+private fun ZoneRow(zone: ZoneOption, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(zone.city, style = MaterialTheme.typography.titleMedium)
+            Text(
+                "${zone.region} · ${zone.id}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            zone.offsetLabel,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,7 +76,7 @@ fun ZonePickerScreen(
 
     val allowed: Set<String>? = if (restrictToAdded) addedZones.map { it.zoneId }.toSet() else null
 
-    val results = remember(query, allowed) { TimeZones.filter(query, allowed) }
+    val results = remember(query, allowed) { TimeZones.query(query, allowed) }
 
     Scaffold(
         topBar = {
@@ -85,28 +111,32 @@ fun ZonePickerScreen(
                 contentPadding = PaddingValues(vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
-                items(results, key = { it.id }) { zone ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPick(zone.id) }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(zone.city, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "${zone.region} · ${zone.id}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                if (results.pinned.isNotEmpty()) {
+                    item {
                         Text(
-                            zone.offsetLabel,
-                            style = MaterialTheme.typography.bodyMedium,
+                            "Pinned",
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
+                    items(results.pinned, key = { "pinned-${it.id}" }) { zone ->
+                        ZoneRow(zone = zone, onClick = { onPick(zone.id) })
+                        HorizontalDivider()
+                    }
+                    if (results.rest.isNotEmpty()) {
+                        item {
+                            Text(
+                                "All zones",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
+                }
+                items(results.rest, key = { it.id }) { zone ->
+                    ZoneRow(zone = zone, onClick = { onPick(zone.id) })
                     HorizontalDivider()
                 }
             }

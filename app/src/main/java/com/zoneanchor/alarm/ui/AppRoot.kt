@@ -1,8 +1,14 @@
 package com.zoneanchor.alarm.ui
 
+import android.Manifest
 import android.app.AlarmManager
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.PublicOff
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
@@ -121,7 +128,10 @@ fun AppRoot(
                 val vm: AlarmsViewModel = viewModel(factory = factory)
                 AlarmsScreen(
                     vm = vm,
-                    permissionBanner = { ExactAlarmBanner(onOpenExactAlarmSettings) },
+                    permissionBanner = {
+                        ExactAlarmBanner(onOpenExactAlarmSettings)
+                        NotificationPermissionBanner()
+                    },
                     onAdd = { nav.navigate(Routes.alarmEdit()) },
                     onEdit = { nav.navigate(Routes.alarmEdit(it.id)) },
                 )
@@ -231,4 +241,56 @@ private fun needsExactAlarmGrant(context: Context): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
     val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     return !am.canScheduleExactAlarms()
+}
+
+@Composable
+private fun NotificationPermissionBanner() {
+    val context = LocalContext.current
+    if (!needsNotificationGrant(context)) return
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                Icons.Default.NotificationsOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                stringResource(R.string.permission_notifications_rationale),
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(onClick = { openAppNotificationSettings(context) }) {
+                Text(stringResource(R.string.open))
+            }
+        }
+    }
+}
+
+private fun needsNotificationGrant(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+    return ContextCompat.checkSelfPermission(
+        context, Manifest.permission.POST_NOTIFICATIONS,
+    ) != PackageManager.PERMISSION_GRANTED
+}
+
+private fun openAppNotificationSettings(context: Context) {
+    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+    } else {
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(Uri.parse("package:${context.packageName}"))
+    }
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    context.startActivity(intent)
 }
