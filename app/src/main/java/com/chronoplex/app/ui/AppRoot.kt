@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -98,6 +99,12 @@ fun AppRoot(
     val showBottomBar = currentRoute in tabRoutes
 
     Scaffold(
+        // Each child screen has its own Scaffold + TopAppBar, which handles the
+        // status-bar/cutout inset on its own. The bottomBar below also consumes
+        // its own bottom inset. Without this override, the outer Scaffold would
+        // ALSO add the top status-bar inset to its content padding, producing
+        // visible double-spacing at the top of every screen.
+        contentWindowInsets = WindowInsets(0),
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {

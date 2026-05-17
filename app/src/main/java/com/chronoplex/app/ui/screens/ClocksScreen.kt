@@ -98,15 +98,16 @@ fun ClocksScreen(
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
-                        if (clocks.size >= 2) {
-                            IconButton(onClick = { reorderMode = true }) {
-                                Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.reorder))
-                            }
-                        }
                         IconButton(onClick = { menuOpen = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            if (clocks.size >= 2) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.reorder)) },
+                                    onClick = { menuOpen = false; reorderMode = true },
+                                )
+                            }
                             if (groupingEnabled) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.manage_groups)) },
@@ -175,6 +176,7 @@ fun ClocksScreen(
             onCreate = { vm.createGroup(it) },
             onRename = { id, name -> vm.renameGroup(id, name) },
             onDelete = { vm.deleteGroup(it) },
+            onReorder = { vm.reorderGroups(it) },
             onDismiss = { manageGroupsOpen = false },
             memberCount = { gid -> clocks.count { it.groupId == gid } },
         )
@@ -499,8 +501,9 @@ private fun ClocksReorderableList(
 
 /**
  * Grouped reorder list. Items can be reordered within their group only;
- * cross-group moves are rejected via canDragOver. Group headers are static
- * anchors (groups themselves aren't reordered in this iteration).
+ * group headers act as fixed anchors. Reordering of the groups themselves
+ * is handled in ManageGroupsDialog instead (drag handles are awkward in a
+ * long mixed list).
  */
 @Composable
 private fun ClocksGroupedReorderableList(
@@ -524,7 +527,6 @@ private fun ClocksGroupedReorderableList(
                 val toIdx = indexOfFirst { it.id == toId }
                 if (fromIdx in indices && toIdx in indices) add(toIdx, removeAt(fromIdx))
             }
-            // Only the affected group's items need their sortOrder reset.
             val affectedIds = local.filter { it.groupId == fromItem.groupId }.map { it.id }
             onReorder(affectedIds)
         },
@@ -547,7 +549,6 @@ private fun ClocksGroupedReorderableList(
             groups.forEach { g ->
                 val members = byGroup[g.id].orEmpty()
                 item(key = "h-${g.id}") {
-                    // Force-expanded header for reorder; tap-to-collapse intentionally disabled here.
                     GroupHeader(g.copy(collapsed = false), members.size, onToggleCollapsed = { })
                 }
                 items(members, key = { it.id }) { clock ->
