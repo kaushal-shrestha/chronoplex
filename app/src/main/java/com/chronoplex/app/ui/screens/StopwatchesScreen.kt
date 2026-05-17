@@ -21,12 +21,15 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -52,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chronoplex.app.R
+import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Stopwatch
 import com.chronoplex.app.domain.StopwatchState
 import com.chronoplex.app.ui.StopwatchesViewModel
@@ -61,6 +65,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun StopwatchesScreen(vm: StopwatchesViewModel) {
     val stopwatches by vm.stopwatches.collectAsState()
+    val groups by vm.groups.collectAsState()
+    val groupingEnabled by vm.groupingEnabled.collectAsState()
     // 10 Hz tick for smooth centisecond display when any stopwatch is running.
     val now by produceState(initialValue = System.currentTimeMillis()) {
         while (true) {
@@ -69,9 +75,29 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
         }
     }
     var renameTarget by remember { mutableStateOf<Stopwatch?>(null) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var manageGroupsOpen by remember { mutableStateOf(false) }
+    var moveTarget by remember { mutableStateOf<Stopwatch?>(null) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.tab_stopwatches)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.tab_stopwatches)) },
+                actions = {
+                    if (groupingEnabled) {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.manage_groups)) },
+                                onClick = { menuOpen = false; manageGroupsOpen = true },
+                            )
+                        }
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { vm.addStopwatch() }) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_stopwatch))
@@ -86,14 +112,44 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
             ) {
                 if (stopwatches.isEmpty()) {
                     item { EmptyState(R.string.empty_stopwatches_title, R.string.empty_stopwatches_body) }
-                } else {
+                } else if (!groupingEnabled) {
                     items(stopwatches, key = { it.id }) { sw ->
                         StopwatchCard(
-                            stopwatch = sw,
-                            nowMillis = now,
-                            vm = vm,
+                            stopwatch = sw, nowMillis = now, vm = vm,
+                            groupingEnabled = false,
                             onRename = { renameTarget = sw },
+                            onMove = { moveTarget = sw },
                         )
+                    }
+                } else {
+                    val byGroup = stopwatches.groupBy { it.groupId }
+                    groups.forEach { g ->
+                        val members = byGroup[g.id].orEmpty()
+                        item(key = "group-${g.id}") {
+                            GroupHeader(g, members.size, onToggleCollapsed = { vm.toggleCollapsed(g) })
+                        }
+                        if (!g.collapsed) {
+                            items(members, key = { "g${g.id}-${it.id}" }) { sw ->
+                                StopwatchCard(
+                                    stopwatch = sw, nowMillis = now, vm = vm,
+                                    groupingEnabled = true,
+                                    onRename = { renameTarget = sw },
+                                    onMove = { moveTarget = sw },
+                                )
+                            }
+                        }
+                    }
+                    val ungrouped = byGroup[null].orEmpty()
+                    if (ungrouped.isNotEmpty()) {
+                        item(key = "ungrouped") { UngroupedHeader(ungrouped.size) }
+                        items(ungrouped, key = { "u-${it.id}" }) { sw ->
+                            StopwatchCard(
+                                stopwatch = sw, nowMillis = now, vm = vm,
+                                groupingEnabled = true,
+                                onRename = { renameTarget = sw },
+                                onMove = { moveTarget = sw },
+                            )
+                        }
                     }
                 }
             }
@@ -110,6 +166,25 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
             },
         )
     }
+
+    if (manageGroupsOpen) {
+        ManageGroupsDialog(
+            groups = groups,
+            onCreate = { vm.createGroup(it) },
+            onRename = { id, name -> vm.renameGroup(id, name) },
+            onDelete = { vm.deleteGroup(it) },
+            onDismiss = { manageGroupsOpen = false },
+        )
+    }
+    moveTarget?.let { target ->
+        MoveToGroupDialog(
+            currentGroupId = target.groupId,
+            groups = groups,
+            onMove = { gid -> vm.moveToGroup(target.id, gid); moveTarget = null },
+            onCreateAndMove = { name -> vm.createGroup(name); moveTarget = null },
+            onDismiss = { moveTarget = null },
+        )
+    }
 }
 
 @Composable
@@ -117,7 +192,9 @@ private fun StopwatchCard(
     stopwatch: Stopwatch,
     nowMillis: Long,
     vm: StopwatchesViewModel,
+    groupingEnabled: Boolean,
     onRename: () -> Unit,
+    onMove: () -> Unit,
 ) {
     var lapsExpanded by remember { mutableStateOf(false) }
     val laps by vm.observeLaps(stopwatch.id).collectAsState(initial = emptyList())
@@ -178,6 +255,15 @@ private fun StopwatchCard(
                 }
                 IconButton(onClick = { vm.reset(stopwatch) }) {
                     Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.reset))
+                }
+                if (groupingEnabled) {
+                    IconButton(onClick = onMove) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.move_to_group),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 IconButton(onClick = { vm.delete(stopwatch) }) {
                     Icon(

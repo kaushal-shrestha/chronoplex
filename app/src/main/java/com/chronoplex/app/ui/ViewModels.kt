@@ -12,6 +12,7 @@ import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.domain.AppearanceMode
 import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.DayMask
+import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.ThemePalette
 import com.chronoplex.app.domain.Stopwatch
 import com.chronoplex.app.domain.StopwatchLap
@@ -33,6 +34,12 @@ class ClocksViewModel(private val container: AppContainer) : ViewModel() {
     val clocks: StateFlow<List<Clock>> = container.clockRepo.observeAll()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    val groups: StateFlow<List<Group>> = container.clockRepo.observeGroups()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val groupingEnabled: StateFlow<Boolean> = container.settings.clocksGroupingEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     fun delete(id: Long) = viewModelScope.launch { container.clockRepo.delete(id) }
 
     fun deleteAll() = viewModelScope.launch { container.clockRepo.deleteAll() }
@@ -43,11 +50,27 @@ class ClocksViewModel(private val container: AppContainer) : ViewModel() {
         container.clockRepo.upsert(Clock(label = "Eastern Time", zoneId = "America/New_York"))
         container.clockRepo.upsert(Clock(label = "UTC Time", zoneId = "UTC"))
     }
+
+    fun moveToGroup(clockId: Long, groupId: Long?) = viewModelScope.launch {
+        container.clockRepo.assignToGroup(clockId, groupId)
+    }
+    fun createGroup(name: String) = viewModelScope.launch { container.clockRepo.createGroup(name) }
+    fun renameGroup(id: Long, name: String) = viewModelScope.launch { container.clockRepo.renameGroup(id, name) }
+    fun deleteGroup(id: Long) = viewModelScope.launch { container.clockRepo.deleteGroup(id) }
+    fun toggleCollapsed(group: Group) = viewModelScope.launch {
+        container.clockRepo.setCollapsed(group.id, !group.collapsed)
+    }
 }
 
 class AlarmsViewModel(private val container: AppContainer) : ViewModel() {
     val alarms: StateFlow<List<Alarm>> = container.alarmRepo.observeAll()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val groups: StateFlow<List<Group>> = container.alarmRepo.observeGroups()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val groupingEnabled: StateFlow<Boolean> = container.settings.alarmsGroupingEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun toggleEnabled(alarm: Alarm) = viewModelScope.launch {
         val newEnabled = !alarm.enabled
@@ -62,6 +85,16 @@ class AlarmsViewModel(private val container: AppContainer) : ViewModel() {
     fun delete(alarm: Alarm) = viewModelScope.launch {
         container.scheduler.cancel(alarm.id)
         container.alarmRepo.delete(alarm.id)
+    }
+
+    fun moveToGroup(alarmId: Long, groupId: Long?) = viewModelScope.launch {
+        container.alarmRepo.assignToGroup(alarmId, groupId)
+    }
+    fun createGroup(name: String) = viewModelScope.launch { container.alarmRepo.createGroup(name) }
+    fun renameGroup(id: Long, name: String) = viewModelScope.launch { container.alarmRepo.renameGroup(id, name) }
+    fun deleteGroup(id: Long) = viewModelScope.launch { container.alarmRepo.deleteGroup(id) }
+    fun toggleCollapsed(group: Group) = viewModelScope.launch {
+        container.alarmRepo.setCollapsed(group.id, !group.collapsed)
     }
 }
 
@@ -190,26 +223,56 @@ data class SettingsState(
     val palette: ThemePalette = ThemePalette.Anchor,
     val alarmZoneSource: AlarmZoneSource = AlarmZoneSource.ALL_ZONES,
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
+    val clocksGrouping: Boolean = false,
+    val alarmsGrouping: Boolean = false,
+    val timersGrouping: Boolean = false,
+    val stopwatchesGrouping: Boolean = false,
 )
 
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
-    val state: StateFlow<SettingsState> = combine(
-        container.settings.appearance,
-        container.settings.palette,
-        container.settings.alarmZoneSource,
-        container.settings.firstDayOfWeek,
-    ) { a, p, z, d -> SettingsState(a, p, z, d) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
+    val state: StateFlow<SettingsState> = kotlinx.coroutines.flow.combine(
+        listOf(
+            container.settings.appearance,
+            container.settings.palette,
+            container.settings.alarmZoneSource,
+            container.settings.firstDayOfWeek,
+            container.settings.clocksGroupingEnabled,
+            container.settings.alarmsGroupingEnabled,
+            container.settings.timersGroupingEnabled,
+            container.settings.stopwatchesGroupingEnabled,
+        )
+    ) { values ->
+        SettingsState(
+            appearance = values[0] as AppearanceMode,
+            palette = values[1] as ThemePalette,
+            alarmZoneSource = values[2] as AlarmZoneSource,
+            firstDayOfWeek = values[3] as DayOfWeek,
+            clocksGrouping = values[4] as Boolean,
+            alarmsGrouping = values[5] as Boolean,
+            timersGrouping = values[6] as Boolean,
+            stopwatchesGrouping = values[7] as Boolean,
+        )
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     fun setAppearance(m: AppearanceMode) = viewModelScope.launch { container.settings.setAppearance(m) }
     fun setPalette(p: ThemePalette) = viewModelScope.launch { container.settings.setPalette(p) }
     fun setZoneSource(s: AlarmZoneSource) = viewModelScope.launch { container.settings.setAlarmZoneSource(s) }
     fun setFirstDayOfWeek(d: DayOfWeek) = viewModelScope.launch { container.settings.setFirstDayOfWeek(d) }
+    fun setClocksGrouping(v: Boolean) = viewModelScope.launch { container.settings.setClocksGroupingEnabled(v) }
+    fun setAlarmsGrouping(v: Boolean) = viewModelScope.launch { container.settings.setAlarmsGroupingEnabled(v) }
+    fun setTimersGrouping(v: Boolean) = viewModelScope.launch { container.settings.setTimersGroupingEnabled(v) }
+    fun setStopwatchesGrouping(v: Boolean) = viewModelScope.launch { container.settings.setStopwatchesGroupingEnabled(v) }
 }
 
 class TimersViewModel(private val container: AppContainer) : ViewModel() {
     val timers: StateFlow<List<Timer>> = container.timerRepo.observeAll()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val groups: StateFlow<List<Group>> = container.timerRepo.observeGroups()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val groupingEnabled: StateFlow<Boolean> = container.settings.timersGroupingEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun start(timer: Timer) = viewModelScope.launch { container.timerScheduler.start(timer) }
     fun pause(timer: Timer) = viewModelScope.launch { container.timerScheduler.pause(timer) }
@@ -220,6 +283,16 @@ class TimersViewModel(private val container: AppContainer) : ViewModel() {
     fun delete(timer: Timer) = viewModelScope.launch {
         container.timerScheduler.reset(timer)
         container.timerRepo.delete(timer.id)
+    }
+
+    fun moveToGroup(timerId: Long, groupId: Long?) = viewModelScope.launch {
+        container.timerRepo.assignToGroup(timerId, groupId)
+    }
+    fun createGroup(name: String) = viewModelScope.launch { container.timerRepo.createGroup(name) }
+    fun renameGroup(id: Long, name: String) = viewModelScope.launch { container.timerRepo.renameGroup(id, name) }
+    fun deleteGroup(id: Long) = viewModelScope.launch { container.timerRepo.deleteGroup(id) }
+    fun toggleCollapsed(group: Group) = viewModelScope.launch {
+        container.timerRepo.setCollapsed(group.id, !group.collapsed)
     }
 }
 
@@ -340,7 +413,23 @@ class StopwatchesViewModel(private val container: AppContainer) : ViewModel() {
     val stopwatches: StateFlow<List<Stopwatch>> = container.stopwatchRepo.observeAll()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    val groups: StateFlow<List<Group>> = container.stopwatchRepo.observeGroups()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val groupingEnabled: StateFlow<Boolean> = container.settings.stopwatchesGroupingEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     fun observeLaps(stopwatchId: Long) = container.stopwatchRepo.observeLaps(stopwatchId)
+
+    fun moveToGroup(stopwatchId: Long, groupId: Long?) = viewModelScope.launch {
+        container.stopwatchRepo.assignToGroup(stopwatchId, groupId)
+    }
+    fun createGroup(name: String) = viewModelScope.launch { container.stopwatchRepo.createGroup(name) }
+    fun renameGroup(id: Long, name: String) = viewModelScope.launch { container.stopwatchRepo.renameGroup(id, name) }
+    fun deleteGroup(id: Long) = viewModelScope.launch { container.stopwatchRepo.deleteGroup(id) }
+    fun toggleCollapsed(group: Group) = viewModelScope.launch {
+        container.stopwatchRepo.setCollapsed(group.id, !group.collapsed)
+    }
 
     fun addStopwatch() = viewModelScope.launch {
         // Number it sequentially based on what's already there for a friendly default label.

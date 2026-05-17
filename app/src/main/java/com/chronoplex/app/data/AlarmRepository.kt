@@ -2,7 +2,9 @@ package com.chronoplex.app.data
 
 import com.chronoplex.app.data.db.AlarmDao
 import com.chronoplex.app.data.db.AlarmEntity
+import com.chronoplex.app.data.db.AlarmGroupEntity
 import com.chronoplex.app.domain.Alarm
+import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Validate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -31,6 +33,33 @@ class AlarmRepository(private val dao: AlarmDao) {
     }
 
     suspend fun delete(id: Long) = dao.deleteById(id)
+
+    // ----- Grouping -----
+
+    fun observeGroups(): Flow<List<Group>> =
+        dao.observeGroups().map { list -> list.map { it.toDomain() } }
+
+    suspend fun createGroup(name: String): Long {
+        val cleanName = Validate.label(name).ifBlank { "Group" }
+        return dao.upsertGroup(AlarmGroupEntity(name = cleanName, sortOrder = System.currentTimeMillis(), collapsed = false))
+    }
+
+    suspend fun renameGroup(id: Long, name: String) {
+        val existing = dao.getGroupById(id) ?: return
+        dao.updateGroup(existing.copy(name = Validate.label(name).ifBlank { existing.name }))
+    }
+
+    suspend fun setCollapsed(id: Long, collapsed: Boolean) {
+        val existing = dao.getGroupById(id) ?: return
+        dao.updateGroup(existing.copy(collapsed = collapsed))
+    }
+
+    suspend fun deleteGroup(id: Long) {
+        dao.unassignGroup(id)
+        dao.deleteGroupById(id)
+    }
+
+    suspend fun assignToGroup(id: Long, groupId: Long?) = dao.assignToGroup(id, groupId)
 
     /** Persist snooze state without re-routing through the rest of upsert's bookkeeping. */
     suspend fun setSnoozeUntil(id: Long, snoozeUntilMillis: Long?) {

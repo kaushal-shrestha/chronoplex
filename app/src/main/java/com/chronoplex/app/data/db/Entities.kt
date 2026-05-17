@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.domain.Clock
+import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Stopwatch
 import com.chronoplex.app.domain.StopwatchLap
 import com.chronoplex.app.domain.StopwatchState
@@ -17,8 +18,9 @@ data class ClockEntity(
     val label: String,
     val zoneId: String,
     val sortOrder: Long,
+    val groupId: Long? = null,
 ) {
-    fun toDomain() = Clock(id = id, label = label, zoneId = zoneId, sortOrder = sortOrder)
+    fun toDomain() = Clock(id = id, label = label, zoneId = zoneId, sortOrder = sortOrder, groupId = groupId)
 
     companion object {
         fun fromDomain(c: Clock) = ClockEntity(
@@ -26,6 +28,7 @@ data class ClockEntity(
             label = c.label,
             zoneId = c.zoneId,
             sortOrder = c.sortOrder,
+            groupId = c.groupId,
         )
     }
 }
@@ -42,6 +45,7 @@ data class AlarmEntity(
     val vibrationEnabled: Boolean,
     val enabled: Boolean,
     val snoozeUntilMillis: Long? = null,
+    val groupId: Long? = null,
 ) {
     fun toDomain() = Alarm(
         id = id,
@@ -54,6 +58,7 @@ data class AlarmEntity(
         vibrationEnabled = vibrationEnabled,
         enabled = enabled,
         snoozeUntilMillis = snoozeUntilMillis,
+        groupId = groupId,
     )
 
     companion object {
@@ -68,6 +73,7 @@ data class AlarmEntity(
             vibrationEnabled = a.vibrationEnabled,
             enabled = a.enabled,
             snoozeUntilMillis = a.snoozeUntilMillis,
+            groupId = a.groupId,
         )
     }
 }
@@ -82,6 +88,7 @@ data class TimerEntity(
     val pausedRemainingMillis: Long?,
     val finishMode: String,
     val sortOrder: Long,
+    val groupId: Long? = null,
 ) {
     fun toDomain() = Timer(
         id = id,
@@ -92,6 +99,7 @@ data class TimerEntity(
         pausedRemainingMillis = pausedRemainingMillis,
         finishMode = runCatching { TimerFinishMode.valueOf(finishMode) }.getOrElse { TimerFinishMode.NOTIFICATION },
         sortOrder = sortOrder,
+        groupId = groupId,
     )
 
     companion object {
@@ -104,6 +112,7 @@ data class TimerEntity(
             pausedRemainingMillis = t.pausedRemainingMillis,
             finishMode = t.finishMode.name,
             sortOrder = t.sortOrder,
+            groupId = t.groupId,
         )
     }
 }
@@ -116,6 +125,7 @@ data class StopwatchEntity(
     val startedAtMillis: Long?,
     val accumulatedMillis: Long,
     val sortOrder: Long,
+    val groupId: Long? = null,
 ) {
     fun toDomain() = Stopwatch(
         id = id,
@@ -124,6 +134,7 @@ data class StopwatchEntity(
         startedAtMillis = startedAtMillis,
         accumulatedMillis = accumulatedMillis,
         sortOrder = sortOrder,
+        groupId = groupId,
     )
 
     companion object {
@@ -134,6 +145,7 @@ data class StopwatchEntity(
             startedAtMillis = s.startedAtMillis,
             accumulatedMillis = s.accumulatedMillis,
             sortOrder = s.sortOrder,
+            groupId = s.groupId,
         )
     }
 }
@@ -148,5 +160,59 @@ data class StopwatchLapEntity(
 
     companion object {
         fun fromDomain(l: StopwatchLap) = StopwatchLapEntity(l.stopwatchId, l.lapNumber, l.totalElapsedMillis)
+    }
+}
+
+// Per-entity-type group tables. All share the same shape but stay in separate
+// tables so foreign keys and queries are unambiguous.
+@Entity(tableName = "clock_groups")
+data class ClockGroupEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val sortOrder: Long,
+    val collapsed: Boolean,
+) {
+    fun toDomain() = Group(id, name, sortOrder, collapsed)
+    companion object {
+        fun fromDomain(g: Group) = ClockGroupEntity(g.id, g.name, g.sortOrder, g.collapsed)
+    }
+}
+
+@Entity(tableName = "alarm_groups")
+data class AlarmGroupEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val sortOrder: Long,
+    val collapsed: Boolean,
+) {
+    fun toDomain() = Group(id, name, sortOrder, collapsed)
+    companion object {
+        fun fromDomain(g: Group) = AlarmGroupEntity(g.id, g.name, g.sortOrder, g.collapsed)
+    }
+}
+
+@Entity(tableName = "timer_groups")
+data class TimerGroupEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val sortOrder: Long,
+    val collapsed: Boolean,
+) {
+    fun toDomain() = Group(id, name, sortOrder, collapsed)
+    companion object {
+        fun fromDomain(g: Group) = TimerGroupEntity(g.id, g.name, g.sortOrder, g.collapsed)
+    }
+}
+
+@Entity(tableName = "stopwatch_groups")
+data class StopwatchGroupEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val sortOrder: Long,
+    val collapsed: Boolean,
+) {
+    fun toDomain() = Group(id, name, sortOrder, collapsed)
+    companion object {
+        fun fromDomain(g: Group) = StopwatchGroupEntity(g.id, g.name, g.sortOrder, g.collapsed)
     }
 }
