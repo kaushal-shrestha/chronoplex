@@ -14,9 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -52,6 +57,8 @@ import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Timer
 import com.chronoplex.app.domain.TimerState
 import com.chronoplex.app.ui.TimersViewModel
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,6 +75,8 @@ fun TimersScreen(
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Timer?>(null) }
     var ungroupedCollapsed by remember { mutableStateOf(false) }
+    var reorderMode by remember { mutableStateOf(false) }
+    if ((groupingEnabled || timers.isEmpty()) && reorderMode) reorderMode = false
 
     // Single per-screen tick drives every running timer's countdown.
     val now by produceState(initialValue = System.currentTimeMillis()) {
@@ -80,29 +89,51 @@ fun TimersScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.tab_timers)) },
+                title = {
+                    Text(
+                        if (reorderMode) stringResource(R.string.reorder)
+                        else stringResource(R.string.tab_timers)
+                    )
+                },
                 actions = {
-                    if (groupingEnabled) {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                    if (reorderMode) {
+                        IconButton(onClick = { reorderMode = false }) {
+                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.manage_groups)) },
-                                onClick = { menuOpen = false; manageGroupsOpen = true },
-                            )
+                    } else {
+                        if (!groupingEnabled && timers.size >= 2) {
+                            IconButton(onClick = { reorderMode = true }) {
+                                Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.reorder))
+                            }
+                        }
+                        if (groupingEnabled) {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                            }
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.manage_groups)) },
+                                    onClick = { menuOpen = false; manageGroupsOpen = true },
+                                )
+                            }
                         }
                     }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_timer))
+            if (!reorderMode) {
+                FloatingActionButton(onClick = onAdd) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_timer))
+                }
             }
         },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (reorderMode) {
+                TimersReorderableList(timers = timers, onReorder = { vm.reorderItems(it) })
+                return@Box
+            }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -304,6 +335,64 @@ private fun stateLabel(state: TimerState): String = when (state) {
     TimerState.RUNNING -> stringResource(R.string.timer_state_running)
     TimerState.PAUSED -> stringResource(R.string.timer_state_paused)
     TimerState.FINISHED -> stringResource(R.string.timer_state_finished)
+}
+
+@Composable
+private fun TimersReorderableList(timers: List<Timer>, onReorder: (List<Long>) -> Unit) {
+    var local by remember(timers.map { it.id }) { mutableStateOf(timers) }
+    val lazyListState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        local = local.toMutableList().apply {
+            val fromIdx = indexOfFirst { it.id == from.key as Long }
+            val toIdx = indexOfFirst { it.id == to.key as Long }
+            if (fromIdx in indices && toIdx in indices) add(toIdx, removeAt(fromIdx))
+        }
+        onReorder(local.map { it.id })
+    }
+    Column {
+        Text(
+            stringResource(R.string.reorder_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(local, key = { it.id }) { timer ->
+                ReorderableItem(reorderState, key = timer.id) {
+                    Card(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.DragHandle,
+                                contentDescription = stringResource(R.string.reorder),
+                                modifier = Modifier.draggableHandle().size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    timer.label.ifBlank { stateLabel(timer.state) },
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    formatDuration(timer.durationMillis),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 private fun formatDuration(millis: Long): String {
