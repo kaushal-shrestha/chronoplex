@@ -42,6 +42,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -51,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +69,8 @@ import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Stopwatch
 import com.chronoplex.app.domain.StopwatchState
 import com.chronoplex.app.ui.StopwatchesViewModel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlinx.coroutines.delay
@@ -88,6 +95,23 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
     var ungroupedCollapsed by remember { mutableStateOf(false) }
     var reorderMode by remember { mutableStateOf(false) }
     if (stopwatches.isEmpty() && reorderMode) reorderMode = false
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val deletedLabel = stringResource(R.string.stopwatch_deleted)
+    val undoLabel = stringResource(R.string.undo)
+    fun handleDelete(stopwatch: Stopwatch) {
+        scope.launch {
+            // Snapshot laps BEFORE deletion; delete() cascades to laps in the repo.
+            val laps = vm.observeLaps(stopwatch.id).first()
+            vm.delete(stopwatch)
+            val r = snackbarHostState.showSnackbar(
+                message = deletedLabel,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Long,
+            )
+            if (r == SnackbarResult.ActionPerformed) vm.restore(stopwatch, laps)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -135,6 +159,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                 }
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (reorderMode) {
@@ -163,6 +188,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                             groupingEnabled = false,
                             onRename = { renameTarget = sw },
                             onMove = { moveTarget = sw },
+                            onDelete = { handleDelete(sw) },
                         )
                     }
                 } else {
@@ -179,6 +205,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                                     groupingEnabled = true,
                                     onRename = { renameTarget = sw },
                                     onMove = { moveTarget = sw },
+                                    onDelete = { handleDelete(sw) },
                                 )
                             }
                         }
@@ -199,6 +226,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                                     groupingEnabled = true,
                                     onRename = { renameTarget = sw },
                                     onMove = { moveTarget = sw },
+                                    onDelete = { handleDelete(sw) },
                                 )
                             }
                         }
@@ -252,6 +280,7 @@ private fun StopwatchCard(
     groupingEnabled: Boolean,
     onRename: () -> Unit,
     onMove: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     var lapsExpanded by remember { mutableStateOf(false) }
     val laps by vm.observeLaps(stopwatch.id).collectAsState(initial = emptyList())
@@ -265,6 +294,7 @@ private fun StopwatchCard(
                         Text(
                             stopwatch.label.ifBlank { stringResource(R.string.tab_stopwatches) },
                             style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (stopwatch.label.isNotBlank()) FontWeight.Bold else FontWeight.Normal,
                             modifier = Modifier.weight(1f, fill = false),
                         )
                         IconButton(onClick = onRename) {
@@ -322,7 +352,7 @@ private fun StopwatchCard(
                         )
                     }
                 }
-                IconButton(onClick = { vm.delete(stopwatch) }) {
+                IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.DeleteOutline,
                         contentDescription = stringResource(R.string.delete),
@@ -525,6 +555,7 @@ private fun sh.calvin.reorderable.ReorderableCollectionItemScope.StopwatchDragRo
                 Text(
                     stopwatch.label.ifBlank { stringResource(R.string.tab_stopwatches) },
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (stopwatch.label.isNotBlank()) FontWeight.Bold else FontWeight.Normal,
                 )
                 Text(
                     stateLabel(stopwatch.state),

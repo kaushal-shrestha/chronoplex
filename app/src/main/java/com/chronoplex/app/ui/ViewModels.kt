@@ -68,6 +68,11 @@ class ClocksViewModel(private val container: AppContainer) : ViewModel() {
         val newId = container.clockRepo.createGroup(name)
         container.clockRepo.assignToGroup(itemId, newId)
     }
+
+    /** Re-insert a previously deleted clock (gets a new auto-id). */
+    fun restore(clock: Clock) = viewModelScope.launch {
+        container.clockRepo.upsert(clock.copy(id = 0))
+    }
 }
 
 class AlarmsViewModel(private val container: AppContainer) : ViewModel() {
@@ -110,6 +115,14 @@ class AlarmsViewModel(private val container: AppContainer) : ViewModel() {
     fun createAndAssign(itemId: Long, name: String) = viewModelScope.launch {
         val newId = container.alarmRepo.createGroup(name)
         container.alarmRepo.assignToGroup(itemId, newId)
+    }
+
+    /** Re-insert a deleted alarm; if it was enabled at deletion, re-schedule it. */
+    fun restore(alarm: Alarm) = viewModelScope.launch {
+        val newId = container.alarmRepo.upsert(alarm.copy(id = 0, snoozeUntilMillis = null))
+        if (alarm.enabled) {
+            container.scheduler.schedule(alarm.copy(id = newId, snoozeUntilMillis = null))
+        }
     }
 }
 
@@ -346,6 +359,18 @@ class TimersViewModel(private val container: AppContainer) : ViewModel() {
         val newId = container.timerRepo.createGroup(name)
         container.timerRepo.assignToGroup(itemId, newId)
     }
+
+    /** Re-insert a deleted timer in IDLE state (we don't try to resume a partial run). */
+    fun restore(timer: Timer) = viewModelScope.launch {
+        container.timerRepo.upsert(
+            timer.copy(
+                id = 0,
+                state = TimerState.IDLE,
+                endsAtMillis = null,
+                pausedRemainingMillis = null,
+            )
+        )
+    }
 }
 
 data class TimerEditState(
@@ -503,6 +528,21 @@ class StopwatchesViewModel(private val container: AppContainer) : ViewModel() {
     fun createAndAssign(itemId: Long, name: String) = viewModelScope.launch {
         val newId = container.stopwatchRepo.createGroup(name)
         container.stopwatchRepo.assignToGroup(itemId, newId)
+    }
+
+    /** Re-insert a deleted stopwatch along with its lap history. */
+    fun restore(stopwatch: Stopwatch, laps: List<StopwatchLap>) = viewModelScope.launch {
+        val newId = container.stopwatchRepo.upsert(
+            stopwatch.copy(
+                id = 0,
+                state = StopwatchState.IDLE,
+                startedAtMillis = null,
+                accumulatedMillis = stopwatch.elapsedMillis(),
+            )
+        )
+        laps.sortedBy { it.lapNumber }.forEach { lap ->
+            container.stopwatchRepo.addLap(newId, lap.totalElapsedMillis)
+        }
     }
 
     fun addStopwatch() = viewModelScope.launch {

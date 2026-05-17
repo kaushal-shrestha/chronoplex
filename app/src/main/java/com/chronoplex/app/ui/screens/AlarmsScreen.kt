@@ -31,6 +31,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +44,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -56,6 +61,7 @@ import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.domain.Group
 import com.chronoplex.app.ui.AlarmsViewModel
+import kotlinx.coroutines.launch
 import com.chronoplex.app.ui.needsExactAlarmGrant
 import com.chronoplex.app.ui.needsNotificationGrant
 import com.chronoplex.app.ui.openAppNotificationSettings
@@ -86,6 +92,21 @@ fun AlarmsScreen(
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Alarm?>(null) }
     var ungroupedCollapsed by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val deletedLabel = stringResource(R.string.alarm_deleted)
+    val undoLabel = stringResource(R.string.undo)
+    fun handleDelete(alarm: Alarm) {
+        vm.delete(alarm)
+        scope.launch {
+            val r = snackbarHostState.showSnackbar(
+                message = deletedLabel,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Long,
+            )
+            if (r == SnackbarResult.ActionPerformed) vm.restore(alarm)
+        }
+    }
 
     // Re-check permissions whenever we come back to the foreground — e.g. after the
     // user toggles a permission in system settings and returns.
@@ -126,6 +147,7 @@ fun AlarmsScreen(
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_alarm))
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             LazyColumn(
@@ -142,7 +164,7 @@ fun AlarmsScreen(
                             groupingEnabled = false,
                             onClick = { onEdit(alarm) },
                             onToggle = { vm.toggleEnabled(alarm) },
-                            onDelete = { vm.delete(alarm) },
+                            onDelete = { handleDelete(alarm) },
                             onMove = { moveTarget = alarm },
                         )
                     }
@@ -160,7 +182,7 @@ fun AlarmsScreen(
                                     groupingEnabled = true,
                                     onClick = { onEdit(alarm) },
                                     onToggle = { vm.toggleEnabled(alarm) },
-                                    onDelete = { vm.delete(alarm) },
+                                    onDelete = { handleDelete(alarm) },
                                     onMove = { moveTarget = alarm },
                                 )
                             }
@@ -182,7 +204,7 @@ fun AlarmsScreen(
                                     groupingEnabled = true,
                                     onClick = { onEdit(alarm) },
                                     onToggle = { vm.toggleEnabled(alarm) },
-                                    onDelete = { vm.delete(alarm) },
+                                    onDelete = { handleDelete(alarm) },
                                     onMove = { moveTarget = alarm },
                                 )
                             }
@@ -325,6 +347,7 @@ private fun AlarmRow(
                         Text(
                             alarm.label,
                             style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
