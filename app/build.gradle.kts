@@ -1,8 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+}
+
+val appVersionName = "0.1.0"
+
+// APK filename will be "<archivesName>-<buildType>.apk", e.g. zoneanchor-alarm-v0.1.0-release.apk
+base {
+    archivesName.set("zoneanchor-alarm-v$appVersionName")
 }
 
 android {
@@ -14,7 +23,31 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = appVersionName
+    }
+
+    signingConfigs {
+        create("release") {
+            // Read from local.properties first, then environment. If none of the four
+            // values are present, we fall through and the build uses debug signing.
+            val localProps = Properties().apply {
+                val f = rootProject.file("local.properties")
+                if (f.exists()) f.inputStream().use { load(it) }
+            }
+            fun pick(propKey: String, envKey: String): String? =
+                localProps.getProperty(propKey) ?: System.getenv(envKey)
+
+            val storePath = pick("release.keystore.path", "RELEASE_KEYSTORE_PATH")
+            val storePass = pick("release.keystore.password", "RELEASE_KEYSTORE_PASSWORD")
+            val alias = pick("release.key.alias", "RELEASE_KEY_ALIAS")
+            val keyPass = pick("release.key.password", "RELEASE_KEY_PASSWORD")
+            if (storePath != null && storePass != null && alias != null && keyPass != null) {
+                storeFile = file(storePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+            }
+        }
     }
 
     buildTypes {
@@ -24,6 +57,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Use the release keystore if configured; otherwise fall back to the
+            // debug keystore so the APK is always installable on a test device.
+            val releaseCfg = signingConfigs.getByName("release")
+            signingConfig = if (releaseCfg.storeFile != null) releaseCfg
+                            else signingConfigs.getByName("debug")
         }
     }
 
