@@ -35,6 +35,7 @@ import com.chronoplex.app.R
 import com.chronoplex.app.data.AlarmZoneSource
 import com.chronoplex.app.domain.AppearanceMode
 import com.chronoplex.app.domain.ThemePalette
+import com.chronoplex.app.domain.TimerFinishMode
 import com.chronoplex.app.ui.SettingsViewModel
 import java.time.DayOfWeek
 
@@ -128,6 +129,24 @@ fun SettingsScreen(vm: SettingsViewModel) {
                                 DayOfWeek.MONDAY -> stringResource(R.string.day_monday)
                                 DayOfWeek.SUNDAY -> stringResource(R.string.day_sunday)
                                 else -> d.name
+                            })
+                        }
+                    }
+                }
+            }
+            item {
+                SectionLabel(R.string.timer_finish_mode_settings)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val modes = listOf(TimerFinishMode.NOTIFICATION, TimerFinishMode.FULL_SCREEN)
+                    modes.forEachIndexed { i, m ->
+                        SegmentedButton(
+                            selected = state.timerFinishMode == m,
+                            onClick = { vm.setTimerFinishMode(m) },
+                            shape = SegmentedButtonDefaults.itemShape(i, modes.size),
+                        ) {
+                            Text(when (m) {
+                                TimerFinishMode.NOTIFICATION -> stringResource(R.string.timer_finish_mode_notification)
+                                TimerFinishMode.FULL_SCREEN -> stringResource(R.string.timer_finish_mode_full_screen)
                             })
                         }
                     }

@@ -93,4 +93,41 @@
     <string name="alarm_readiness_issues">Alarm setup needs attention</string>
     <string name="permission_label_exact">Exact alarms</string>
     <string name="permission_label_notifications">Notifications</string>
+
+    <!-- Timers -->
+    <string name="tab_timers">Timers</string>
+    <string name="add_timer">Add timer</string>
+    <string name="edit_timer">Edit timer</string>
+    <string name="empty_timers_title">No timers yet</string>
+    <string name="empty_timers_body">Tap the + button to add a timer.</string>
+    <string name="duration">Duration</string>
+    <string name="hours_short">H</string>
+    <string name="minutes_short">M</string>
+    <string name="seconds_short">S</string>
+    <string name="presets">Presets</string>
+    <string name="preset_1m">1m</string>
+    <string name="preset_5m">5m</string>
+    <string name="preset_10m">10m</string>
+    <string name="preset_15m">15m</string>
+    <string name="preset_30m">30m</string>
+    <string name="preset_1h">1h</string>
+    <string name="keypad_clear">CLR</string>
+    <string name="keypad_backspace">⌫</string>
+    <string name="start">Start</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="stop">Stop</string>
+    <string name="add_minute">+1 min</string>
+    <string name="timer_finish_mode">Finish behavior</string>
+    <string name="timer_finish_mode_notification">Notification</string>
+    <string name="timer_finish_mode_full_screen">Full-screen</string>
+    <string name="timer_finish_mode_settings">Default timer finish behavior</string>
+    <string name="timer_channel_name">Timers</string>
+    <string name="timer_channel_description">Plays Chronoplex timer alerts</string>
+    <string name="timer_finished_default_title">Timer finished</string>
+    <string name="timer_finished_body">Tap Stop to dismiss, or +1 min to extend.</string>
+    <string name="timer_state_idle">Ready</string>
+    <string name="timer_state_running">Running</string>
+    <string name="timer_state_paused">Paused</string>
+    <string name="timer_state_finished">Finished</string>
 </resources>

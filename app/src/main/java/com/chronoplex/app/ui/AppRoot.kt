@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.PublicOff
 import androidx.compose.material.icons.filled.Schedule
@@ -57,18 +58,23 @@ import com.chronoplex.app.ui.screens.AlarmsScreen
 import com.chronoplex.app.ui.screens.ClockEditScreen
 import com.chronoplex.app.ui.screens.ClocksScreen
 import com.chronoplex.app.ui.screens.SettingsScreen
+import com.chronoplex.app.ui.screens.TimerEditScreen
+import com.chronoplex.app.ui.screens.TimersScreen
 import com.chronoplex.app.ui.screens.ZonePickerScreen
 
 object Routes {
     const val CLOCKS = "clocks"
     const val ALARMS = "alarms"
+    const val TIMERS = "timers"
     const val SETTINGS = "settings"
     const val CLOCK_EDIT = "clock_edit"
     const val ALARM_EDIT = "alarm_edit"
+    const val TIMER_EDIT = "timer_edit"
     const val ZONE_PICKER = "zone_picker"
 
     fun clockEdit(id: Long = 0L) = "$CLOCK_EDIT?id=$id"
     fun alarmEdit(id: Long = 0L) = "$ALARM_EDIT?id=$id"
+    fun timerEdit(id: Long = 0L) = "$TIMER_EDIT?id=$id"
     fun zonePicker(restrictToAdded: Boolean) = "$ZONE_PICKER?restrict=$restrictToAdded"
 }
 
@@ -85,7 +91,7 @@ fun AppRoot(
 
     val factory = remember(container) { AppViewModelFactory(container) }
 
-    val tabRoutes = setOf(Routes.CLOCKS, Routes.ALARMS, Routes.SETTINGS)
+    val tabRoutes = setOf(Routes.CLOCKS, Routes.ALARMS, Routes.TIMERS, Routes.SETTINGS)
     val showBottomBar = currentRoute in tabRoutes
 
     Scaffold(
@@ -103,6 +109,12 @@ fun AppRoot(
                         onClick = { navigateTab(nav, Routes.ALARMS) },
                         icon = { Icon(Icons.Default.Alarm, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_alarms)) },
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.TIMERS,
+                        onClick = { navigateTab(nav, Routes.TIMERS) },
+                        icon = { Icon(Icons.Default.HourglassEmpty, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_timers)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.SETTINGS,
@@ -135,6 +147,21 @@ fun AppRoot(
                     onAdd = { nav.navigate(Routes.alarmEdit()) },
                     onEdit = { nav.navigate(Routes.alarmEdit(it.id)) },
                 )
+            }
+            composable(Routes.TIMERS) {
+                val vm: TimersViewModel = viewModel(factory = factory)
+                TimersScreen(
+                    vm = vm,
+                    onAdd = { nav.navigate(Routes.timerEdit()) },
+                    onEdit = { nav.navigate(Routes.timerEdit(it.id)) },
+                )
+            }
+            composable(
+                "${Routes.TIMER_EDIT}?id={id}",
+                arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = 0L }),
+            ) {
+                val vm: TimerEditViewModel = viewModel(factory = factory)
+                TimerEditScreen(vm = vm, onClose = { nav.popBackStack() })
             }
             composable(Routes.SETTINGS) {
                 val vm: SettingsViewModel = viewModel(factory = factory)

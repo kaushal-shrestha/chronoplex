@@ -13,6 +13,9 @@ import com.chronoplex.app.domain.AppearanceMode
 import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.domain.ThemePalette
+import com.chronoplex.app.domain.Timer
+import com.chronoplex.app.domain.TimerFinishMode
+import com.chronoplex.app.domain.TimerState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -184,6 +187,7 @@ data class SettingsState(
     val palette: ThemePalette = ThemePalette.Anchor,
     val alarmZoneSource: AlarmZoneSource = AlarmZoneSource.ALL_ZONES,
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
+    val timerFinishMode: TimerFinishMode = TimerFinishMode.NOTIFICATION,
 )
 
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
@@ -192,13 +196,152 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.palette,
         container.settings.alarmZoneSource,
         container.settings.firstDayOfWeek,
-    ) { a, p, z, d -> SettingsState(a, p, z, d) }
+        container.settings.timerFinishMode,
+    ) { a, p, z, d, t -> SettingsState(a, p, z, d, t) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     fun setAppearance(m: AppearanceMode) = viewModelScope.launch { container.settings.setAppearance(m) }
     fun setPalette(p: ThemePalette) = viewModelScope.launch { container.settings.setPalette(p) }
     fun setZoneSource(s: AlarmZoneSource) = viewModelScope.launch { container.settings.setAlarmZoneSource(s) }
     fun setFirstDayOfWeek(d: DayOfWeek) = viewModelScope.launch { container.settings.setFirstDayOfWeek(d) }
+    fun setTimerFinishMode(m: TimerFinishMode) = viewModelScope.launch { container.settings.setTimerFinishMode(m) }
+}
+
+class TimersViewModel(private val container: AppContainer) : ViewModel() {
+    val timers: StateFlow<List<Timer>> = container.timerRepo.observeAll()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun start(timer: Timer) = viewModelScope.launch { container.timerScheduler.start(timer) }
+    fun pause(timer: Timer) = viewModelScope.launch { container.timerScheduler.pause(timer) }
+    fun reset(timer: Timer) = viewModelScope.launch { container.timerScheduler.reset(timer) }
+    fun dismiss(timer: Timer) = viewModelScope.launch { container.timerScheduler.dismiss(timer) }
+    fun addMinute(timer: Timer) = viewModelScope.launch { container.timerScheduler.addMinute(timer) }
+
+    fun delete(timer: Timer) = viewModelScope.launch {
+        container.timerScheduler.reset(timer)
+        container.timerRepo.delete(timer.id)
+    }
+}
+
+data class TimerEditState(
+    val id: Long = 0,
+    val label: String = "",
+    val hours: Int = 0,
+    val minutes: Int = 5,
+    val seconds: Int = 0,
+    val finishMode: TimerFinishMode = TimerFinishMode.NOTIFICATION,
+    val focusedField: DurationField = DurationField.MINUTES,
+) {
+    val totalMillis: Long
+        get() = (hours.toLong() * 3600 + minutes.toLong() * 60 + seconds.toLong()) * 1000L
+    val isValid: Boolean get() = totalMillis > 0L
+}
+
+enum class DurationField { HOURS, MINUTES, SECONDS }
+
+class TimerEditViewModel(
+    private val container: AppContainer,
+    private val handle: SavedStateHandle,
+) : ViewModel() {
+    val state = MutableStateFlow(TimerEditState())
+
+    init {
+        viewModelScope.launch {
+            val defaultMode = container.settings.timerFinishMode.first()
+            state.update { it.copy(finishMode = defaultMode) }
+        }
+        val id = handle.get<Long>("id") ?: 0L
+        if (id > 0L) viewModelScope.launch {
+            container.timerRepo.getById(id)?.let { t ->
+                val total = t.durationMillis / 1000L
+                state.update {
+                    it.copy(
+                        id = t.id,
+                        label = t.label,
+                        hours = (total / 3600).toInt(),
+                        minutes = ((total % 3600) / 60).toInt(),
+                        seconds = (total % 60).toInt(),
+                        finishMode = t.finishMode,
+                    )
+                }
+            }
+        }
+    }
+
+    fun setLabel(v: String) = state.update { it.copy(label = v) }
+    fun setFinishMode(m: TimerFinishMode) = state.update { it.copy(finishMode = m) }
+    fun setFocus(f: DurationField) = state.update { it.copy(focusedField = f) }
+
+    /** Append a digit to the currently-focused field (shift-left within 2 digits). */
+    fun typeDigit(digit: Int) {
+        if (digit !in 0..9) return
+        state.update { s ->
+            val newValue = ((current(s) % 10) * 10 + digit).coerceIn(0, 99)
+            val maxed = newValue >= 10
+            val next = s.copy(
+                hours = if (s.focusedField == DurationField.HOURS) newValue else s.hours,
+                minutes = if (s.focusedField == DurationField.MINUTES) newValue else s.minutes,
+                seconds = if (s.focusedField == DurationField.SECONDS) newValue else s.seconds,
+            )
+            // Auto-advance focus once a field has been filled to 2 digits.
+            if (maxed) next.copy(focusedField = advance(s.focusedField)) else next
+        }
+    }
+
+    fun backspace() = state.update { s ->
+        val newValue = current(s) / 10
+        s.copy(
+            hours = if (s.focusedField == DurationField.HOURS) newValue else s.hours,
+            minutes = if (s.focusedField == DurationField.MINUTES) newValue else s.minutes,
+            seconds = if (s.focusedField == DurationField.SECONDS) newValue else s.seconds,
+        )
+    }
+
+    fun clearField() = state.update { s ->
+        s.copy(
+            hours = if (s.focusedField == DurationField.HOURS) 0 else s.hours,
+            minutes = if (s.focusedField == DurationField.MINUTES) 0 else s.minutes,
+            seconds = if (s.focusedField == DurationField.SECONDS) 0 else s.seconds,
+        )
+    }
+
+    fun setPresetMillis(millis: Long) = state.update { s ->
+        val total = millis / 1000L
+        s.copy(
+            hours = (total / 3600).toInt().coerceAtMost(99),
+            minutes = ((total % 3600) / 60).toInt(),
+            seconds = (total % 60).toInt(),
+        )
+    }
+
+    fun save(onDone: () -> Unit) = viewModelScope.launch {
+        val s = state.value
+        if (!s.isValid) return@launch
+        val timer = Timer(
+            id = s.id,
+            label = s.label,
+            durationMillis = s.totalMillis,
+            state = TimerState.IDLE,
+            endsAtMillis = null,
+            pausedRemainingMillis = null,
+            finishMode = s.finishMode,
+            sortOrder = System.currentTimeMillis(),
+        )
+        container.timerRepo.upsert(timer)
+        onDone()
+    }
+
+    private fun current(s: TimerEditState): Int = when (s.focusedField) {
+        DurationField.HOURS -> s.hours
+        DurationField.MINUTES -> s.minutes
+        DurationField.SECONDS -> s.seconds
+    }
+
+    private fun advance(f: DurationField): DurationField = when (f) {
+        DurationField.HOURS -> DurationField.MINUTES
+        DurationField.MINUTES -> DurationField.SECONDS
+        DurationField.SECONDS -> DurationField.SECONDS
+    }
 }
 
 /** Single factory routes every ViewModel through the AppContainer. */
@@ -209,8 +352,10 @@ class AppViewModelFactory(private val container: AppContainer) : ViewModelProvid
         return when (modelClass) {
             ClocksViewModel::class.java -> ClocksViewModel(container)
             AlarmsViewModel::class.java -> AlarmsViewModel(container)
+            TimersViewModel::class.java -> TimersViewModel(container)
             ClockEditViewModel::class.java -> ClockEditViewModel(container, handle)
             AlarmEditViewModel::class.java -> AlarmEditViewModel(container, handle)
+            TimerEditViewModel::class.java -> TimerEditViewModel(container, handle)
             SettingsViewModel::class.java -> SettingsViewModel(container)
             else -> error("Unknown VM: $modelClass")
         } as T

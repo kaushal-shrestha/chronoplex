@@ -31,6 +31,31 @@ data class Alarm(
 
 enum class AppearanceMode { SYSTEM, LIGHT, DARK }
 
+enum class TimerState { IDLE, RUNNING, PAUSED, FINISHED }
+
+enum class TimerFinishMode { NOTIFICATION, FULL_SCREEN }
+
+data class Timer(
+    val id: Long = 0,
+    val label: String = "",
+    val durationMillis: Long,
+    val state: TimerState = TimerState.IDLE,
+    /** When [state] is RUNNING, the absolute epoch-millis at which this timer fires. */
+    val endsAtMillis: Long? = null,
+    /** When [state] is PAUSED, the millis remaining at the moment of pause. */
+    val pausedRemainingMillis: Long? = null,
+    val finishMode: TimerFinishMode = TimerFinishMode.NOTIFICATION,
+    val sortOrder: Long = System.currentTimeMillis(),
+) {
+    /** Remaining millis at [nowMillis] given the current state. */
+    fun remainingMillis(nowMillis: Long = System.currentTimeMillis()): Long = when (state) {
+        TimerState.IDLE -> durationMillis
+        TimerState.RUNNING -> ((endsAtMillis ?: nowMillis) - nowMillis).coerceAtLeast(0L)
+        TimerState.PAUSED -> pausedRemainingMillis ?: durationMillis
+        TimerState.FINISHED -> 0L
+    }
+}
+
 enum class ThemePalette(val displayName: String, val description: String) {
     Anchor("Anchor", "Material You on Android 12+, deep navy fallback elsewhere"),
     Daybreak("Daybreak", "Clean paper, deep ink, and calm teal"),

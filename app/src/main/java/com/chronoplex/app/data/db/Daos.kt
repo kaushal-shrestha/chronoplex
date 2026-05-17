@@ -55,3 +55,24 @@ interface AlarmDao {
     @Query("DELETE FROM alarms WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
+
+@Dao
+interface TimerDao {
+    @Query("SELECT * FROM timers ORDER BY sortOrder ASC")
+    fun observeAll(): Flow<List<TimerEntity>>
+
+    @Query("SELECT * FROM timers WHERE state = 'RUNNING'")
+    suspend fun getAllRunning(): List<TimerEntity>
+
+    @Query("SELECT * FROM timers WHERE id = :id")
+    suspend fun getById(id: Long): TimerEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(timer: TimerEntity): Long
+
+    @Update
+    suspend fun update(timer: TimerEntity)
+
+    @Query("DELETE FROM timers WHERE id = :id")
+    suspend fun deleteById(id: Long)
+}
