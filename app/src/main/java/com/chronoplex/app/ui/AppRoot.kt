@@ -47,23 +47,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.chronoplex.app.AppContainer
 import com.chronoplex.app.R
-import com.chronoplex.app.ui.screens.AlarmEditScreen
 import com.chronoplex.app.ui.screens.AlarmsScreen
-import com.chronoplex.app.ui.screens.ClockEditScreen
 import com.chronoplex.app.ui.screens.ClocksScreen
 import com.chronoplex.app.ui.screens.SettingsScreen
 import com.chronoplex.app.ui.screens.StopwatchesScreen
-import com.chronoplex.app.ui.screens.TimerEditScreen
 import com.chronoplex.app.ui.screens.TimersScreen
-import com.chronoplex.app.ui.screens.ZonePickerScreen
 
 object Routes {
     const val CLOCKS = "clocks"
@@ -71,18 +65,7 @@ object Routes {
     const val TIMERS = "timers"
     const val STOPWATCHES = "stopwatches"
     const val SETTINGS = "settings"
-    const val CLOCK_EDIT = "clock_edit"
-    const val ALARM_EDIT = "alarm_edit"
-    const val TIMER_EDIT = "timer_edit"
-    const val ZONE_PICKER = "zone_picker"
-
-    fun clockEdit(id: Long = 0L) = "$CLOCK_EDIT?id=$id"
-    fun alarmEdit(id: Long = 0L) = "$ALARM_EDIT?id=$id"
-    fun timerEdit(id: Long = 0L) = "$TIMER_EDIT?id=$id"
-    fun zonePicker(restrictToAdded: Boolean) = "$ZONE_PICKER?restrict=$restrictToAdded"
 }
-
-const val SELECTED_ZONE_KEY = "selected_zone_id"
 
 @Composable
 fun AppRoot(
@@ -149,35 +132,23 @@ fun AppRoot(
         ) {
             composable(Routes.CLOCKS) {
                 val vm: ClocksViewModel = viewModel(factory = factory)
-                ClocksScreen(
-                    vm = vm,
-                    onAdd = { nav.navigate(Routes.clockEdit()) },
-                    onEdit = { nav.navigate(Routes.clockEdit(it.id)) },
-                )
+                val editVm: ClockEditViewModel = viewModel(factory = factory)
+                ClocksScreen(vm = vm, editVm = editVm, container = container)
             }
             composable(Routes.ALARMS) {
                 val vm: AlarmsViewModel = viewModel(factory = factory)
+                val editVm: AlarmEditViewModel = viewModel(factory = factory)
                 AlarmsScreen(
                     vm = vm,
+                    editVm = editVm,
+                    container = container,
                     onOpenExactAlarmSettings = onOpenExactAlarmSettings,
-                    onAdd = { nav.navigate(Routes.alarmEdit()) },
-                    onEdit = { nav.navigate(Routes.alarmEdit(it.id)) },
                 )
             }
             composable(Routes.TIMERS) {
                 val vm: TimersViewModel = viewModel(factory = factory)
-                TimersScreen(
-                    vm = vm,
-                    onAdd = { nav.navigate(Routes.timerEdit()) },
-                    onEdit = { nav.navigate(Routes.timerEdit(it.id)) },
-                )
-            }
-            composable(
-                "${Routes.TIMER_EDIT}?id={id}",
-                arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = 0L }),
-            ) {
-                val vm: TimerEditViewModel = viewModel(factory = factory)
-                TimerEditScreen(vm = vm, onClose = { nav.popBackStack() })
+                val editVm: TimerEditViewModel = viewModel(factory = factory)
+                TimersScreen(vm = vm, editVm = editVm)
             }
             composable(Routes.STOPWATCHES) {
                 val vm: StopwatchesViewModel = viewModel(factory = factory)
@@ -186,57 +157,6 @@ fun AppRoot(
             composable(Routes.SETTINGS) {
                 val vm: SettingsViewModel = viewModel(factory = factory)
                 SettingsScreen(vm = vm)
-            }
-            composable(
-                "${Routes.CLOCK_EDIT}?id={id}",
-                arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = 0L }),
-            ) { entry ->
-                val vm: ClockEditViewModel = viewModel(factory = factory)
-                val savedHandle = entry.savedStateHandle
-                val zoneFlow = remember(savedHandle) {
-                    savedHandle.getStateFlow<String?>(SELECTED_ZONE_KEY, null)
-                }
-                val selectedZone by zoneFlow.collectAsState()
-                ClockEditScreen(
-                    vm = vm,
-                    onPickZone = { nav.navigate(Routes.zonePicker(restrictToAdded = false)) },
-                    selectedZoneFromPicker = selectedZone,
-                    onZoneConsumed = { savedHandle[SELECTED_ZONE_KEY] = null },
-                    onClose = { nav.popBackStack() },
-                )
-            }
-            composable(
-                "${Routes.ALARM_EDIT}?id={id}",
-                arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = 0L }),
-            ) { entry ->
-                val vm: AlarmEditViewModel = viewModel(factory = factory)
-                val savedHandle = entry.savedStateHandle
-                val zoneFlow = remember(savedHandle) {
-                    savedHandle.getStateFlow<String?>(SELECTED_ZONE_KEY, null)
-                }
-                val selectedZone by zoneFlow.collectAsState()
-                AlarmEditScreen(
-                    vm = vm,
-                    onPickZone = { restrict -> nav.navigate(Routes.zonePicker(restrictToAdded = restrict)) },
-                    selectedZoneFromPicker = selectedZone,
-                    onZoneConsumed = { savedHandle[SELECTED_ZONE_KEY] = null },
-                    onClose = { nav.popBackStack() },
-                )
-            }
-            composable(
-                "${Routes.ZONE_PICKER}?restrict={restrict}",
-                arguments = listOf(navArgument("restrict") { type = NavType.BoolType; defaultValue = false }),
-            ) { entry ->
-                val restrict = entry.arguments?.getBoolean("restrict") ?: false
-                ZonePickerScreen(
-                    restrictToAdded = restrict,
-                    container = container,
-                    onPick = { zoneId ->
-                        nav.previousBackStackEntry?.savedStateHandle?.set(SELECTED_ZONE_KEY, zoneId)
-                        nav.popBackStack()
-                    },
-                    onClose = { nav.popBackStack() },
-                )
             }
         }
     }

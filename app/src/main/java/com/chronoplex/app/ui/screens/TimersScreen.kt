@@ -61,6 +61,7 @@ import com.chronoplex.app.R
 import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Timer
 import com.chronoplex.app.domain.TimerState
+import com.chronoplex.app.ui.TimerEditViewModel
 import com.chronoplex.app.ui.TimersViewModel
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -71,8 +72,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun TimersScreen(
     vm: TimersViewModel,
-    onAdd: () -> Unit,
-    onEdit: (Timer) -> Unit,
+    editVm: TimerEditViewModel,
 ) {
     val timers by vm.timers.collectAsState()
     val groups by vm.groups.collectAsState()
@@ -82,11 +82,20 @@ fun TimersScreen(
     var moveTarget by remember { mutableStateOf<Timer?>(null) }
     var ungroupedCollapsed by remember { mutableStateOf(false) }
     var reorderMode by remember { mutableStateOf(false) }
+    var editSheetOpen by remember { mutableStateOf(false) }
     if (timers.isEmpty() && reorderMode) reorderMode = false
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val deletedLabel = stringResource(R.string.timer_deleted)
     val undoLabel = stringResource(R.string.undo)
+    fun openAdd() {
+        editVm.load(0L)
+        editSheetOpen = true
+    }
+    fun openEdit(timer: Timer) {
+        editVm.load(timer.id)
+        editSheetOpen = true
+    }
     fun handleDelete(timer: Timer) {
         vm.delete(timer)
         scope.launch {
@@ -148,7 +157,7 @@ fun TimersScreen(
         },
         floatingActionButton = {
             if (!reorderMode) {
-                FloatingActionButton(onClick = onAdd) {
+                FloatingActionButton(onClick = ::openAdd) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_timer))
                 }
             }
@@ -181,7 +190,7 @@ fun TimersScreen(
                             timer = timer,
                             nowMillis = now,
                             groupingEnabled = false,
-                            onClick = { onEdit(timer) },
+                            onClick = { openEdit(timer) },
                             onPrimaryAction = {
                                 when (timer.state) {
                                     TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
@@ -206,7 +215,7 @@ fun TimersScreen(
                                     timer = timer,
                                     nowMillis = now,
                                     groupingEnabled = true,
-                                    onClick = { onEdit(timer) },
+                                    onClick = { openEdit(timer) },
                                     onPrimaryAction = {
                                         when (timer.state) {
                                             TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
@@ -235,7 +244,7 @@ fun TimersScreen(
                                     timer = timer,
                                     nowMillis = now,
                                     groupingEnabled = true,
-                                    onClick = { onEdit(timer) },
+                                    onClick = { openEdit(timer) },
                                     onPrimaryAction = {
                                         when (timer.state) {
                                             TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
@@ -276,6 +285,10 @@ fun TimersScreen(
             },
             onDismiss = { moveTarget = null },
         )
+    }
+
+    if (editSheetOpen) {
+        TimerEditSheet(vm = editVm, onDismiss = { editSheetOpen = false })
     }
 }
 

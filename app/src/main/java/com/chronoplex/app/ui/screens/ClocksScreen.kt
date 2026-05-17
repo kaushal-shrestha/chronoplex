@@ -58,9 +58,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.chronoplex.app.AppContainer
 import com.chronoplex.app.R
 import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.Group
+import com.chronoplex.app.ui.ClockEditViewModel
 import com.chronoplex.app.ui.ClocksViewModel
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -74,8 +76,8 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun ClocksScreen(
     vm: ClocksViewModel,
-    onAdd: () -> Unit,
-    onEdit: (Clock) -> Unit,
+    editVm: ClockEditViewModel,
+    container: AppContainer,
 ) {
     val clocks by vm.clocks.collectAsState()
     val groups by vm.groups.collectAsState()
@@ -86,6 +88,16 @@ fun ClocksScreen(
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Clock?>(null) }
     var reorderMode by remember { mutableStateOf(false) }
+    var editSheetOpen by remember { mutableStateOf(false) }
+    var zonePickerOpen by remember { mutableStateOf(false) }
+    fun openAdd() {
+        editVm.load(0L)
+        editSheetOpen = true
+    }
+    fun openEdit(clock: Clock) {
+        editVm.load(clock.id)
+        editSheetOpen = true
+    }
     // Auto-exit reorder if the list empties out.
     if (clocks.isEmpty() && reorderMode) reorderMode = false
     val snackbarHostState = remember { SnackbarHostState() }
@@ -157,7 +169,7 @@ fun ClocksScreen(
         },
         floatingActionButton = {
             if (!reorderMode) {
-                FloatingActionButton(onClick = onAdd) {
+                FloatingActionButton(onClick = ::openAdd) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_clock))
                 }
             }
@@ -183,7 +195,7 @@ fun ClocksScreen(
                     clocks = clocks,
                     groups = groups,
                     groupingEnabled = groupingEnabled,
-                    onEdit = onEdit,
+                    onEdit = ::openEdit,
                     onDelete = ::handleDelete,
                     onMove = { moveTarget = it },
                     onToggleCollapsed = { vm.toggleCollapsed(it) },
@@ -250,6 +262,32 @@ fun ClocksScreen(
                 TextButton(onClick = { confirmReset = false }) {
                     Text(stringResource(R.string.cancel))
                 }
+            },
+        )
+    }
+
+    if (editSheetOpen) {
+        ClockEditSheet(
+            vm = editVm,
+            onPickZone = {
+                editSheetOpen = false
+                zonePickerOpen = true
+            },
+            onDismiss = { editSheetOpen = false },
+        )
+    }
+    if (zonePickerOpen) {
+        ZonePickerSheet(
+            restrictToAdded = false,
+            container = container,
+            onPick = { zoneId ->
+                editVm.setZone(zoneId)
+                zonePickerOpen = false
+                editSheetOpen = true
+            },
+            onDismiss = {
+                zonePickerOpen = false
+                editSheetOpen = true
             },
         )
     }
