@@ -19,8 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
@@ -87,8 +87,9 @@ fun ClocksScreen(
     var confirmClearAll by remember { mutableStateOf(false) }
     var confirmReset by remember { mutableStateOf(false) }
     var manageGroupsOpen by remember { mutableStateOf(false) }
-    var moveTarget by remember { mutableStateOf<Clock?>(null) }
     var reorderMode by remember { mutableStateOf(false) }
+    var actionsTarget by remember { mutableStateOf<Clock?>(null) }
+    var moveTarget by remember { mutableStateOf<Clock?>(null) }
     var editSheetOpen by remember { mutableStateOf(false) }
     var zonePickerOpen by remember { mutableStateOf(false) }
     fun openAdd() {
@@ -198,8 +199,8 @@ fun ClocksScreen(
                     groups = groups,
                     groupingEnabled = groupingEnabled,
                     onEdit = ::openEdit,
+                    onLongPress = { actionsTarget = it },
                     onDelete = ::handleDelete,
-                    onMove = { moveTarget = it },
                     onToggleCollapsed = { vm.toggleCollapsed(it) },
                 )
             }
@@ -217,6 +218,30 @@ fun ClocksScreen(
             memberCount = { gid -> clocks.count { it.groupId == gid } },
         )
     }
+    actionsTarget?.let { clock ->
+        val moveLabel = stringResource(R.string.move_to_group)
+        val deleteLabel = stringResource(R.string.delete)
+        RowActionsSheet(
+            title = clock.label,
+            actions = buildList {
+                if (groupingEnabled) {
+                    add(RowAction(
+                        label = moveLabel,
+                        icon = Icons.Default.Folder,
+                        onClick = { actionsTarget = null; moveTarget = clock },
+                    ))
+                }
+                add(RowAction(
+                    label = deleteLabel,
+                    icon = Icons.Default.DeleteOutline,
+                    tint = MaterialTheme.colorScheme.error,
+                    onClick = { actionsTarget = null; handleDelete(clock) },
+                ))
+            },
+            onDismiss = { actionsTarget = null },
+        )
+    }
+
     moveTarget?.let { target ->
         MoveToGroupDialog(
             currentGroupId = target.groupId,
@@ -301,8 +326,8 @@ private fun ClocksList(
     groups: List<Group>,
     groupingEnabled: Boolean,
     onEdit: (Clock) -> Unit,
+    onLongPress: (Clock) -> Unit,
     onDelete: (Clock) -> Unit,
-    onMove: (Clock) -> Unit,
     onToggleCollapsed: (Group) -> Unit,
 ) {
     var now by remember { mutableStateOf(ZonedDateTime.now()) }
@@ -327,10 +352,9 @@ private fun ClocksList(
                 ClockRow(
                     clock = clock,
                     nowEpochMillis = now.toInstant().toEpochMilli(),
-                    groupingEnabled = false,
                     onClick = { onEdit(clock) },
+                    onLongClick = { onLongPress(clock) },
                     onDelete = { onDelete(clock) },
-                    onMove = { onMove(clock) },
                 )
             }
         } else {
@@ -345,10 +369,9 @@ private fun ClocksList(
                         ClockRow(
                             clock = clock,
                             nowEpochMillis = now.toInstant().toEpochMilli(),
-                            groupingEnabled = true,
                             onClick = { onEdit(clock) },
+                            onLongClick = { onLongPress(clock) },
                             onDelete = { onDelete(clock) },
-                            onMove = { onMove(clock) },
                         )
                     }
                 }
@@ -367,10 +390,9 @@ private fun ClocksList(
                         ClockRow(
                             clock = clock,
                             nowEpochMillis = now.toInstant().toEpochMilli(),
-                            groupingEnabled = true,
                             onClick = { onEdit(clock) },
+                            onLongClick = { onLongPress(clock) },
                             onDelete = { onDelete(clock) },
-                            onMove = { onMove(clock) },
                         )
                     }
                 }
@@ -424,10 +446,9 @@ private fun LocalTimeCard(now: ZonedDateTime) {
 private fun ClockRow(
     clock: Clock,
     nowEpochMillis: Long,
-    groupingEnabled: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onDelete: () -> Unit,
-    onMove: () -> Unit,
 ) {
     val zoneTime = remember(clock.zoneId, nowEpochMillis) {
         runCatching {
@@ -443,7 +464,7 @@ private fun ClockRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .tappable(onClick = onClick),
+            .tappable(onLongClick = onLongClick, onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -475,22 +496,6 @@ private fun ClockRow(
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Medium,
                 )
-            }
-            IconButton(onClick = rememberTapFeedback(onClick)) {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.edit_clock),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (groupingEnabled) {
-                IconButton(onClick = rememberTapFeedback(onMove)) {
-                    Icon(
-                        Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.move_to_group),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
             IconButton(onClick = rememberTapFeedback(onDelete)) {
                 Icon(

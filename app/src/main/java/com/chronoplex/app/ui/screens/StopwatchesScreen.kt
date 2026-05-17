@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -69,6 +70,7 @@ import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Stopwatch
 import com.chronoplex.app.domain.StopwatchState
 import com.chronoplex.app.ui.StopwatchesViewModel
+import com.chronoplex.app.ui.longPressable
 import com.chronoplex.app.ui.rememberTapFeedback
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -93,8 +95,10 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
     var menuOpen by remember { mutableStateOf(false) }
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Stopwatch?>(null) }
+    var actionsTarget by remember { mutableStateOf<Stopwatch?>(null) }
     var ungroupedCollapsed by remember { mutableStateOf(false) }
     var reorderMode by remember { mutableStateOf(false) }
+    var confirmClearAll by remember { mutableStateOf(false) }
     if (stopwatches.isEmpty() && reorderMode) reorderMode = false
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -129,25 +133,27 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
-                        val anyMenuContent = stopwatches.size >= 2 || groupingEnabled
-                        if (anyMenuContent) {
-                            IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            if (stopwatches.size >= 2) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.reorder)) },
+                                    onClick = rememberTapFeedback { menuOpen = false; reorderMode = true },
+                                )
                             }
-                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                if (stopwatches.size >= 2) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.reorder)) },
-                                        onClick = rememberTapFeedback { menuOpen = false; reorderMode = true },
-                                    )
-                                }
-                                if (groupingEnabled) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.manage_groups)) },
-                                        onClick = rememberTapFeedback { menuOpen = false; manageGroupsOpen = true },
-                                    )
-                                }
+                            if (groupingEnabled) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.manage_groups)) },
+                                    onClick = rememberTapFeedback { menuOpen = false; manageGroupsOpen = true },
+                                )
                             }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.clear_all_stopwatches)) },
+                                onClick = rememberTapFeedback { menuOpen = false; confirmClearAll = true },
+                                enabled = stopwatches.isNotEmpty(),
+                            )
                         }
                     }
                 },
@@ -187,9 +193,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                     items(stopwatches, key = { it.id }) { sw ->
                         StopwatchCard(
                             stopwatch = sw, nowMillis = now, vm = vm,
-                            groupingEnabled = false,
-                            onRename = { renameTarget = sw },
-                            onMove = { moveTarget = sw },
+                            onLongClick = { actionsTarget = sw },
                             onDelete = { handleDelete(sw) },
                         )
                     }
@@ -204,9 +208,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                             items(members, key = { "g${g.id}-${it.id}" }) { sw ->
                                 StopwatchCard(
                                     stopwatch = sw, nowMillis = now, vm = vm,
-                                    groupingEnabled = true,
-                                    onRename = { renameTarget = sw },
-                                    onMove = { moveTarget = sw },
+                                    onLongClick = { actionsTarget = sw },
                                     onDelete = { handleDelete(sw) },
                                 )
                             }
@@ -225,9 +227,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                             items(ungrouped, key = { "u-${it.id}" }) { sw ->
                                 StopwatchCard(
                                     stopwatch = sw, nowMillis = now, vm = vm,
-                                    groupingEnabled = true,
-                                    onRename = { renameTarget = sw },
-                                    onMove = { moveTarget = sw },
+                                    onLongClick = { actionsTarget = sw },
                                     onDelete = { handleDelete(sw) },
                                 )
                             }
@@ -246,6 +246,36 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                 vm.rename(target, newLabel)
                 renameTarget = null
             },
+        )
+    }
+
+    actionsTarget?.let { sw ->
+        val renameLabel = stringResource(R.string.rename)
+        val moveLabel = stringResource(R.string.move_to_group)
+        val deleteLabel = stringResource(R.string.delete)
+        RowActionsSheet(
+            title = sw.label.ifBlank { null },
+            actions = buildList {
+                add(RowAction(
+                    label = renameLabel,
+                    icon = Icons.Default.Edit,
+                    onClick = { actionsTarget = null; renameTarget = sw },
+                ))
+                if (groupingEnabled) {
+                    add(RowAction(
+                        label = moveLabel,
+                        icon = Icons.Default.Folder,
+                        onClick = { actionsTarget = null; moveTarget = sw },
+                    ))
+                }
+                add(RowAction(
+                    label = deleteLabel,
+                    icon = Icons.Default.DeleteOutline,
+                    tint = MaterialTheme.colorScheme.error,
+                    onClick = { actionsTarget = null; handleDelete(sw) },
+                ))
+            },
+            onDismiss = { actionsTarget = null },
         )
     }
 
@@ -272,6 +302,25 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
             onDismiss = { moveTarget = null },
         )
     }
+
+    if (confirmClearAll) {
+        AlertDialog(
+            onDismissRequest = { confirmClearAll = false },
+            title = { Text(stringResource(R.string.clear_all_stopwatches)) },
+            text = { Text(stringResource(R.string.clear_all_stopwatches_message)) },
+            confirmButton = {
+                TextButton(onClick = rememberTapFeedback {
+                    confirmClearAll = false
+                    vm.deleteAll()
+                }) { Text(stringResource(R.string.clear)) }
+            },
+            dismissButton = {
+                TextButton(onClick = rememberTapFeedback { confirmClearAll = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -279,30 +328,27 @@ private fun StopwatchCard(
     stopwatch: Stopwatch,
     nowMillis: Long,
     vm: StopwatchesViewModel,
-    groupingEnabled: Boolean,
-    onRename: () -> Unit,
-    onMove: () -> Unit,
+    onLongClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var lapsExpanded by remember { mutableStateOf(false) }
     val laps by vm.observeLaps(stopwatch.id).collectAsState(initial = emptyList())
     val elapsed = stopwatch.elapsedMillis(nowMillis)
 
-    Card(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .longPressable(onLongClick),
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            stopwatch.label.ifBlank { stringResource(R.string.tab_stopwatches) },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = if (stopwatch.label.isNotBlank()) FontWeight.Bold else FontWeight.Normal,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                        IconButton(onClick = rememberTapFeedback(onRename)) {
-                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.rename))
-                        }
-                    }
+                    Text(
+                        stopwatch.label.ifBlank { stringResource(R.string.tab_stopwatches) },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (stopwatch.label.isNotBlank()) FontWeight.Bold else FontWeight.Normal,
+                    )
                     Text(
                         formatCenti(elapsed),
                         fontSize = 32.sp,
@@ -344,15 +390,6 @@ private fun StopwatchCard(
                 }
                 IconButton(onClick = rememberTapFeedback { vm.reset(stopwatch) }) {
                     Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.reset))
-                }
-                if (groupingEnabled) {
-                    IconButton(onClick = rememberTapFeedback(onMove)) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.move_to_group),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
                 IconButton(onClick = rememberTapFeedback(onDelete)) {
                     Icon(

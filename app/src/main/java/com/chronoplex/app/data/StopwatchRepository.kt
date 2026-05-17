@@ -54,6 +54,11 @@ class StopwatchRepository(private val dao: StopwatchDao) {
         dao.deleteById(id)
     }
 
+    suspend fun deleteAll() {
+        dao.deleteAllLaps()
+        dao.deleteAll()
+    }
+
     fun observeLaps(stopwatchId: Long): Flow<List<StopwatchLap>> =
         dao.observeLaps(stopwatchId).map { list -> list.map { it.toDomain() } }
 
