@@ -52,6 +52,11 @@
     <string name="reset_clocks">Reset to suggested clocks</string>
     <string name="reset_clocks_message">Replace the current list with Eastern Time and UTC. Existing alarms aren\'t affected.</string>
     <string name="reset">Reset</string>
+    <string name="about">About</string>
+    <string name="about_description">Advanced Time Management — Clocks, Alarms, Timers, Stopwatches.</string>
+    <string name="about_copyright">© 2026 Kaushal Shrestha</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="close">Close</string>
 
     <string name="appearance">Appearance</string>
     <string name="appearance_system">Follow system</string>
