@@ -80,8 +80,8 @@ fun ClocksScreen(
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Clock?>(null) }
     var reorderMode by remember { mutableStateOf(false) }
-    // Flat-mode reorder only; exit if grouping gets turned on or list empties out.
-    if ((groupingEnabled || clocks.isEmpty()) && reorderMode) reorderMode = false
+    // Auto-exit reorder if the list empties out.
+    if (clocks.isEmpty() && reorderMode) reorderMode = false
 
     Scaffold(
         topBar = {
@@ -98,8 +98,7 @@ fun ClocksScreen(
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
-                        // Reorder is only meaningful with at least two flat items, no groups.
-                        if (!groupingEnabled && clocks.size >= 2) {
+                        if (clocks.size >= 2) {
                             IconButton(onClick = { reorderMode = true }) {
                                 Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.reorder))
                             }
@@ -144,10 +143,18 @@ fun ClocksScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (reorderMode) {
-                ClocksReorderableList(
-                    clocks = clocks,
-                    onReorder = { vm.reorderItems(it) },
-                )
+                if (groupingEnabled) {
+                    ClocksGroupedReorderableList(
+                        clocks = clocks,
+                        groups = groups,
+                        onReorder = { vm.reorderItems(it) },
+                    )
+                } else {
+                    ClocksReorderableList(
+                        clocks = clocks,
+                        onReorder = { vm.reorderItems(it) },
+                    )
+                }
             } else {
                 ClocksList(
                     clocks = clocks,
@@ -485,6 +492,106 @@ private fun ClocksReorderableList(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Grouped reorder list. Items can be reordered within their group only;
+ * cross-group moves are rejected via canDragOver. Group headers are static
+ * anchors (groups themselves aren't reordered in this iteration).
+ */
+@Composable
+private fun ClocksGroupedReorderableList(
+    clocks: List<Clock>,
+    groups: List<Group>,
+    onReorder: (List<Long>) -> Unit,
+) {
+    var local by remember(clocks.map { it.id }) { mutableStateOf(clocks) }
+    val lazyListState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(
+        lazyListState = lazyListState,
+        onMove = { from, to ->
+            val fromId = from.key as? Long ?: return@rememberReorderableLazyListState
+            val toId = to.key as? Long ?: return@rememberReorderableLazyListState
+            val fromItem = local.firstOrNull { it.id == fromId } ?: return@rememberReorderableLazyListState
+            val toItem = local.firstOrNull { it.id == toId } ?: return@rememberReorderableLazyListState
+            if (fromItem.groupId != toItem.groupId) return@rememberReorderableLazyListState
+
+            local = local.toMutableList().apply {
+                val fromIdx = indexOfFirst { it.id == fromId }
+                val toIdx = indexOfFirst { it.id == toId }
+                if (fromIdx in indices && toIdx in indices) add(toIdx, removeAt(fromIdx))
+            }
+            // Only the affected group's items need their sortOrder reset.
+            val affectedIds = local.filter { it.groupId == fromItem.groupId }.map { it.id }
+            onReorder(affectedIds)
+        },
+    )
+
+    Column {
+        Text(
+            stringResource(R.string.reorder_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            val byGroup = local.groupBy { it.groupId }
+            groups.forEach { g ->
+                val members = byGroup[g.id].orEmpty()
+                item(key = "h-${g.id}") {
+                    // Force-expanded header for reorder; tap-to-collapse intentionally disabled here.
+                    GroupHeader(g.copy(collapsed = false), members.size, onToggleCollapsed = { })
+                }
+                items(members, key = { it.id }) { clock ->
+                    ReorderableItem(reorderState, key = clock.id) {
+                        ClockDragRow(clock = clock)
+                    }
+                }
+            }
+            val ungrouped = byGroup[null].orEmpty()
+            if (ungrouped.isNotEmpty()) {
+                item(key = "h-ungrouped") {
+                    UngroupedHeader(itemCount = ungrouped.size, collapsed = false, onToggleCollapsed = { })
+                }
+                items(ungrouped, key = { it.id }) { clock ->
+                    ReorderableItem(reorderState, key = clock.id) {
+                        ClockDragRow(clock = clock)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun sh.calvin.reorderable.ReorderableCollectionItemScope.ClockDragRow(clock: Clock) {
+    Card(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.DragHandle,
+                contentDescription = stringResource(R.string.reorder),
+                modifier = Modifier.draggableHandle().size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(clock.label, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    clock.zoneId,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

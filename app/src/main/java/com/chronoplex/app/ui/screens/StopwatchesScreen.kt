@@ -87,7 +87,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
     var moveTarget by remember { mutableStateOf<Stopwatch?>(null) }
     var ungroupedCollapsed by remember { mutableStateOf(false) }
     var reorderMode by remember { mutableStateOf(false) }
-    if ((groupingEnabled || stopwatches.isEmpty()) && reorderMode) reorderMode = false
+    if (stopwatches.isEmpty() && reorderMode) reorderMode = false
 
     Scaffold(
         topBar = {
@@ -104,7 +104,7 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
-                        if (!groupingEnabled && stopwatches.size >= 2) {
+                        if (stopwatches.size >= 2) {
                             IconButton(onClick = { reorderMode = true }) {
                                 Icon(Icons.Default.DragHandle, contentDescription = stringResource(R.string.reorder))
                             }
@@ -134,7 +134,15 @@ fun StopwatchesScreen(vm: StopwatchesViewModel) {
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (reorderMode) {
-                StopwatchesReorderableList(stopwatches = stopwatches, onReorder = { vm.reorderItems(it) })
+                if (groupingEnabled) {
+                    StopwatchesGroupedReorderableList(
+                        stopwatches = stopwatches,
+                        groups = groups,
+                        onReorder = { vm.reorderItems(it) },
+                    )
+                } else {
+                    StopwatchesReorderableList(stopwatches = stopwatches, onReorder = { vm.reorderItems(it) })
+                }
                 return@Box
             }
             LazyColumn(
@@ -423,6 +431,101 @@ private fun StopwatchesReorderableList(stopwatches: List<Stopwatch>, onReorder: 
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StopwatchesGroupedReorderableList(
+    stopwatches: List<Stopwatch>,
+    groups: List<Group>,
+    onReorder: (List<Long>) -> Unit,
+) {
+    var local by remember(stopwatches.map { it.id }) { mutableStateOf(stopwatches) }
+    val lazyListState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(
+        lazyListState = lazyListState,
+        onMove = { from, to ->
+            val fromId = from.key as? Long ?: return@rememberReorderableLazyListState
+            val toId = to.key as? Long ?: return@rememberReorderableLazyListState
+            val fromItem = local.firstOrNull { it.id == fromId } ?: return@rememberReorderableLazyListState
+            val toItem = local.firstOrNull { it.id == toId } ?: return@rememberReorderableLazyListState
+            if (fromItem.groupId != toItem.groupId) return@rememberReorderableLazyListState
+
+            local = local.toMutableList().apply {
+                val fromIdx = indexOfFirst { it.id == fromId }
+                val toIdx = indexOfFirst { it.id == toId }
+                if (fromIdx in indices && toIdx in indices) add(toIdx, removeAt(fromIdx))
+            }
+            val affectedIds = local.filter { it.groupId == fromItem.groupId }.map { it.id }
+            onReorder(affectedIds)
+        },
+    )
+    Column {
+        Text(
+            stringResource(R.string.reorder_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            val byGroup = local.groupBy { it.groupId }
+            groups.forEach { g ->
+                val members = byGroup[g.id].orEmpty()
+                item(key = "h-${g.id}") {
+                    GroupHeader(g.copy(collapsed = false), members.size, onToggleCollapsed = { })
+                }
+                items(members, key = { it.id }) { sw ->
+                    ReorderableItem(reorderState, key = sw.id) {
+                        StopwatchDragRow(stopwatch = sw)
+                    }
+                }
+            }
+            val ungrouped = byGroup[null].orEmpty()
+            if (ungrouped.isNotEmpty()) {
+                item(key = "h-ungrouped") {
+                    UngroupedHeader(itemCount = ungrouped.size, collapsed = false, onToggleCollapsed = { })
+                }
+                items(ungrouped, key = { it.id }) { sw ->
+                    ReorderableItem(reorderState, key = sw.id) {
+                        StopwatchDragRow(stopwatch = sw)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun sh.calvin.reorderable.ReorderableCollectionItemScope.StopwatchDragRow(stopwatch: Stopwatch) {
+    Card(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.DragHandle,
+                contentDescription = stringResource(R.string.reorder),
+                modifier = Modifier.draggableHandle().size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stopwatch.label.ifBlank { stringResource(R.string.tab_stopwatches) },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    stateLabel(stopwatch.state),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
