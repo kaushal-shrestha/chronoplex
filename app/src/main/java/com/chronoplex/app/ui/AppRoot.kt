@@ -53,6 +53,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.chronoplex.app.AppContainer
 import com.chronoplex.app.R
+import com.chronoplex.app.ui.rememberTapFeedback
 import com.chronoplex.app.ui.screens.AlarmsScreen
 import com.chronoplex.app.ui.screens.ClocksScreen
 import com.chronoplex.app.ui.screens.SettingsScreen
@@ -93,31 +94,31 @@ fun AppRoot(
                 NavigationBar {
                     NavigationBarItem(
                         selected = currentRoute == Routes.CLOCKS,
-                        onClick = { navigateTab(nav, Routes.CLOCKS) },
+                        onClick = rememberTapFeedback { navigateTab(nav, Routes.CLOCKS) },
                         icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_clocks)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.ALARMS,
-                        onClick = { navigateTab(nav, Routes.ALARMS) },
+                        onClick = rememberTapFeedback { navigateTab(nav, Routes.ALARMS) },
                         icon = { Icon(Icons.Default.Alarm, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_alarms)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.TIMERS,
-                        onClick = { navigateTab(nav, Routes.TIMERS) },
+                        onClick = rememberTapFeedback { navigateTab(nav, Routes.TIMERS) },
                         icon = { Icon(Icons.Default.HourglassEmpty, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_timers)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.STOPWATCHES,
-                        onClick = { navigateTab(nav, Routes.STOPWATCHES) },
+                        onClick = rememberTapFeedback { navigateTab(nav, Routes.STOPWATCHES) },
                         icon = { Icon(Icons.Default.Timer, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_stopwatches)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.SETTINGS,
-                        onClick = { navigateTab(nav, Routes.SETTINGS) },
+                        onClick = rememberTapFeedback { navigateTab(nav, Routes.SETTINGS) },
                         icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_settings)) },
                     )

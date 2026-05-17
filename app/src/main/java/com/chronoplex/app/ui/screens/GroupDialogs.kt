@@ -1,6 +1,7 @@
 package com.chronoplex.app.ui.screens
 
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.rememberTapFeedback
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -97,12 +98,12 @@ fun MoveToGroupDialog(
                         ) {
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.save))
                         }
-                        IconButton(onClick = { creating = false; newGroupName = "" }) {
+                        IconButton(onClick = rememberTapFeedback { creating = false; newGroupName = "" }) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                         }
                     }
                 } else {
-                    TextButton(onClick = { creating = true }) {
+                    TextButton(onClick = rememberTapFeedback { creating = true }) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.size(4.dp))
                         Text(stringResource(R.string.new_group))
@@ -111,7 +112,7 @@ fun MoveToGroupDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            TextButton(onClick = rememberTapFeedback(onDismiss)) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
@@ -121,11 +122,11 @@ private fun GroupOptionRow(label: String, selected: Boolean, onClick: () -> Unit
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .tappable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = onClick)
+        RadioButton(selected = selected, onClick = rememberTapFeedback(onClick))
         Text(label, modifier = Modifier.padding(start = 8.dp))
     }
 }
@@ -194,13 +195,13 @@ fun ManageGroupsDialog(
                                     )
                                     Spacer(Modifier.size(8.dp))
                                     Text(g.name, modifier = Modifier.weight(1f))
-                                    IconButton(onClick = {
+                                    IconButton(onClick = rememberTapFeedback {
                                         renameTarget = g
                                         renameText = g.name
                                     }) {
                                         Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.rename))
                                     }
-                                    IconButton(onClick = { deleteTarget = g }) {
+                                    IconButton(onClick = rememberTapFeedback { deleteTarget = g }) {
                                         Icon(
                                             Icons.Default.DeleteOutline,
                                             contentDescription = stringResource(R.string.delete),
@@ -236,7 +237,7 @@ fun ManageGroupsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
+            TextButton(onClick = rememberTapFeedback(onDismiss)) { Text(stringResource(R.string.done)) }
         },
     )
 
@@ -253,13 +254,13 @@ fun ManageGroupsDialog(
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(onClick = rememberTapFeedback {
                     if (renameText.isNotBlank()) onRename(target.id, renameText.trim())
                     renameTarget = null
                 }) { Text(stringResource(R.string.save)) }
             },
             dismissButton = {
-                TextButton(onClick = { renameTarget = null }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = rememberTapFeedback { renameTarget = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -278,7 +279,7 @@ fun ManageGroupsDialog(
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(onClick = rememberTapFeedback {
                     onDelete(target.id)
                     deleteTarget = null
                 }) {
@@ -289,7 +290,7 @@ fun ManageGroupsDialog(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = rememberTapFeedback { deleteTarget = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -305,7 +306,7 @@ fun GroupHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggleCollapsed)
+            .tappable(onClick = onToggleCollapsed)
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -335,7 +336,7 @@ fun UngroupedHeader(itemCount: Int, collapsed: Boolean, onToggleCollapsed: () ->
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggleCollapsed)
+            .tappable(onClick = onToggleCollapsed)
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -417,12 +418,12 @@ fun GroupPickerDialog(
                             },
                             enabled = newGroupName.isNotBlank(),
                         ) { Icon(Icons.Default.Check, contentDescription = stringResource(R.string.save)) }
-                        IconButton(onClick = { creating = false; newGroupName = "" }) {
+                        IconButton(onClick = rememberTapFeedback { creating = false; newGroupName = "" }) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                         }
                     }
                 } else {
-                    TextButton(onClick = { creating = true }) {
+                    TextButton(onClick = rememberTapFeedback { creating = true }) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.size(4.dp))
                         Text(stringResource(R.string.new_group))
@@ -431,7 +432,7 @@ fun GroupPickerDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
+            TextButton(onClick = rememberTapFeedback(onDismiss)) { Text(stringResource(R.string.done)) }
         },
     )
 }

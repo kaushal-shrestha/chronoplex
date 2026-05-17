@@ -56,7 +56,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.chronoplex.app.AppContainer
 import com.chronoplex.app.R
@@ -64,6 +64,7 @@ import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.Group
 import com.chronoplex.app.ui.ClockEditViewModel
 import com.chronoplex.app.ui.ClocksViewModel
+import com.chronoplex.app.ui.rememberTapFeedback
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -127,36 +128,36 @@ fun ClocksScreen(
                 },
                 actions = {
                     if (reorderMode) {
-                        IconButton(onClick = { reorderMode = false }) {
+                        IconButton(onClick = rememberTapFeedback { reorderMode = false }) {
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
-                        IconButton(onClick = { menuOpen = true }) {
+                        IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             if (clocks.size >= 2) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.reorder)) },
-                                    onClick = { menuOpen = false; reorderMode = true },
+                                    onClick = rememberTapFeedback { menuOpen = false; reorderMode = true },
                                 )
                             }
                             if (groupingEnabled) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.manage_groups)) },
-                                    onClick = { menuOpen = false; manageGroupsOpen = true },
+                                    onClick = rememberTapFeedback { menuOpen = false; manageGroupsOpen = true },
                                 )
                             }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.reset_clocks)) },
-                                onClick = {
+                                onClick = rememberTapFeedback {
                                     menuOpen = false
                                     confirmReset = true
                                 },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.clear_all_clocks)) },
-                                onClick = {
+                                onClick = rememberTapFeedback {
                                     menuOpen = false
                                     confirmClearAll = true
                                 },
@@ -169,7 +170,8 @@ fun ClocksScreen(
         },
         floatingActionButton = {
             if (!reorderMode) {
-                FloatingActionButton(onClick = ::openAdd) {
+                val onFabClick = rememberTapFeedback { openAdd() }
+                FloatingActionButton(onClick = onFabClick) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_clock))
                 }
             }
@@ -234,13 +236,13 @@ fun ClocksScreen(
             title = { Text(stringResource(R.string.clear_all_clocks)) },
             text = { Text(stringResource(R.string.clear_all_clocks_message)) },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(onClick = rememberTapFeedback {
                     confirmClearAll = false
                     vm.deleteAll()
                 }) { Text(stringResource(R.string.clear)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmClearAll = false }) {
+                TextButton(onClick = rememberTapFeedback { confirmClearAll = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -253,13 +255,13 @@ fun ClocksScreen(
             title = { Text(stringResource(R.string.reset_clocks)) },
             text = { Text(stringResource(R.string.reset_clocks_message)) },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(onClick = rememberTapFeedback {
                     confirmReset = false
                     vm.resetToDefaults()
                 }) { Text(stringResource(R.string.reset)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmReset = false }) {
+                TextButton(onClick = rememberTapFeedback { confirmReset = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -441,7 +443,7 @@ private fun ClockRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
+            .tappable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -474,7 +476,7 @@ private fun ClockRow(
                     fontWeight = FontWeight.Medium,
                 )
             }
-            IconButton(onClick = onClick) {
+            IconButton(onClick = rememberTapFeedback(onClick)) {
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = stringResource(R.string.edit_clock),
@@ -482,7 +484,7 @@ private fun ClockRow(
                 )
             }
             if (groupingEnabled) {
-                IconButton(onClick = onMove) {
+                IconButton(onClick = rememberTapFeedback(onMove)) {
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = stringResource(R.string.move_to_group),
@@ -490,7 +492,7 @@ private fun ClockRow(
                     )
                 }
             }
-            IconButton(onClick = onDelete) {
+            IconButton(onClick = rememberTapFeedback(onDelete)) {
                 Icon(
                     Icons.Default.DeleteOutline,
                     contentDescription = stringResource(R.string.delete),

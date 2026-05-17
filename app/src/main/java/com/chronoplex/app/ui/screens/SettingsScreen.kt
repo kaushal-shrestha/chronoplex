@@ -29,7 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.chronoplex.app.R
@@ -37,6 +37,8 @@ import com.chronoplex.app.data.AlarmZoneSource
 import com.chronoplex.app.domain.AppearanceMode
 import com.chronoplex.app.domain.ThemePalette
 import com.chronoplex.app.ui.SettingsViewModel
+import com.chronoplex.app.ui.rememberTapFeedback
+import com.chronoplex.app.ui.rememberToggleFeedback
 import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -57,7 +59,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     AppearanceMode.values().forEachIndexed { i, mode ->
                         SegmentedButton(
                             selected = state.appearance == mode,
-                            onClick = { vm.setAppearance(mode) },
+                            onClick = rememberTapFeedback { vm.setAppearance(mode) },
                             shape = SegmentedButtonDefaults.itemShape(i, AppearanceMode.values().size),
                         ) {
                             Text(when (mode) {
@@ -78,7 +80,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     ThemePalette.values().forEach { p ->
                         FilterChip(
                             selected = state.palette == p,
-                            onClick = { vm.setPalette(p) },
+                            onClick = rememberTapFeedback { vm.setPalette(p) },
                             label = { Text(p.displayName) },
                         )
                     }
@@ -122,7 +124,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     options.forEachIndexed { i, d ->
                         SegmentedButton(
                             selected = state.firstDayOfWeek == d,
-                            onClick = { vm.setFirstDayOfWeek(d) },
+                            onClick = rememberTapFeedback { vm.setFirstDayOfWeek(d) },
                             shape = SegmentedButtonDefaults.itemShape(i, options.size),
                         ) {
                             Text(when (d) {
@@ -166,12 +168,12 @@ private fun GroupingToggleRow(label: String, checked: Boolean, onCheckedChange: 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
+            .tappable { onCheckedChange(!checked) }
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = rememberToggleFeedback(onCheckedChange))
     }
 }
 
@@ -180,11 +182,11 @@ private fun AlarmZoneSourceRow(label: String, selected: Boolean, onClick: () -> 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .tappable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = onClick)
+        RadioButton(selected = selected, onClick = rememberTapFeedback(onClick))
         Spacer(Modifier.height(0.dp))
         Text(label, modifier = Modifier.padding(start = 8.dp))
     }

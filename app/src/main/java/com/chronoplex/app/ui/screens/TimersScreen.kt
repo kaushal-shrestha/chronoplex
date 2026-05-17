@@ -1,6 +1,6 @@
 package com.chronoplex.app.ui.screens
 
-import androidx.compose.foundation.clickable
+import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +63,7 @@ import com.chronoplex.app.domain.Timer
 import com.chronoplex.app.domain.TimerState
 import com.chronoplex.app.ui.TimerEditViewModel
 import com.chronoplex.app.ui.TimersViewModel
+import com.chronoplex.app.ui.rememberTapFeedback
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -127,26 +128,26 @@ fun TimersScreen(
                 },
                 actions = {
                     if (reorderMode) {
-                        IconButton(onClick = { reorderMode = false }) {
+                        IconButton(onClick = rememberTapFeedback { reorderMode = false }) {
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.done))
                         }
                     } else {
                         val anyMenuContent = timers.size >= 2 || groupingEnabled
                         if (anyMenuContent) {
-                            IconButton(onClick = { menuOpen = true }) {
+                            IconButton(onClick = rememberTapFeedback { menuOpen = true }) {
                                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 if (timers.size >= 2) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.reorder)) },
-                                        onClick = { menuOpen = false; reorderMode = true },
+                                        onClick = rememberTapFeedback { menuOpen = false; reorderMode = true },
                                     )
                                 }
                                 if (groupingEnabled) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.manage_groups)) },
-                                        onClick = { menuOpen = false; manageGroupsOpen = true },
+                                        onClick = rememberTapFeedback { menuOpen = false; manageGroupsOpen = true },
                                     )
                                 }
                             }
@@ -157,7 +158,8 @@ fun TimersScreen(
         },
         floatingActionButton = {
             if (!reorderMode) {
-                FloatingActionButton(onClick = ::openAdd) {
+                val onFabClick = rememberTapFeedback { openAdd() }
+                FloatingActionButton(onClick = onFabClick) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_timer))
                 }
             }
@@ -312,7 +314,7 @@ private fun TimerRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
+            .tappable(onClick = onClick),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -337,7 +339,7 @@ private fun TimerRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = onPrimaryAction) {
+                IconButton(onClick = rememberTapFeedback(onPrimaryAction)) {
                     Icon(
                         when (timer.state) {
                             TimerState.RUNNING -> Icons.Default.Pause
@@ -350,11 +352,11 @@ private fun TimerRow(
                         },
                     )
                 }
-                IconButton(onClick = onReset) {
+                IconButton(onClick = rememberTapFeedback(onReset)) {
                     Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.reset))
                 }
                 if (groupingEnabled) {
-                    IconButton(onClick = onMove) {
+                    IconButton(onClick = rememberTapFeedback(onMove)) {
                         Icon(
                             Icons.Default.MoreVert,
                             contentDescription = stringResource(R.string.move_to_group),
@@ -362,7 +364,7 @@ private fun TimerRow(
                         )
                     }
                 }
-                IconButton(onClick = onDelete) {
+                IconButton(onClick = rememberTapFeedback(onDelete)) {
                     Icon(
                         Icons.Default.DeleteOutline,
                         contentDescription = stringResource(R.string.delete),
