@@ -300,6 +300,9 @@ fun ClocksScreen(
                 editSheetOpen = false
                 zonePickerOpen = true
             },
+            onDelete = { id ->
+                clocks.firstOrNull { it.id == id }?.let { handleDelete(it) }
+            },
             onDismiss = { editSheetOpen = false },
         )
     }
