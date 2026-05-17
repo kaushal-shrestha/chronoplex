@@ -1,7 +1,12 @@
 package com.zoneanchor.alarm.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -25,6 +30,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
@@ -40,10 +48,17 @@ import androidx.compose.ui.Modifier
 import android.text.format.DateFormat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.zoneanchor.alarm.R
 import com.zoneanchor.alarm.data.AlarmZoneSource
 import com.zoneanchor.alarm.domain.DayMask
 import com.zoneanchor.alarm.ui.AlarmEditViewModel
+import com.zoneanchor.alarm.ZoneAnchorApp
 import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -63,9 +78,10 @@ fun AlarmEditScreen(
     }
 
     val s by vm.state.collectAsState()
-    val zoneSource by vm.zoneSource.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
+    val firstDay by (context.applicationContext as ZoneAnchorApp).container.settings.firstDayOfWeek
+        .collectAsState(initial = DayOfWeek.MONDAY)
 
     val timeState = rememberTimePickerState(initialHour = s.hour, initialMinute = s.minute, is24Hour = is24Hour)
     LaunchedEffect(timeState.hour, timeState.minute) {
@@ -104,26 +120,44 @@ fun AlarmEditScreen(
             }
 
             item {
-                OutlinedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onPickZone(zoneSource == AlarmZoneSource.ADDED_CLOCKS) }
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                Column {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        val sources = listOf(AlarmZoneSource.ADDED_CLOCKS, AlarmZoneSource.ALL_ZONES)
+                        sources.forEachIndexed { i, src ->
+                            SegmentedButton(
+                                selected = s.zoneSource == src,
+                                onClick = { vm.setZoneSource(src) },
+                                shape = SegmentedButtonDefaults.itemShape(i, sources.size),
+                            ) {
+                                Text(when (src) {
+                                    AlarmZoneSource.ADDED_CLOCKS -> stringResource(R.string.zone_source_added)
+                                    AlarmZoneSource.ALL_ZONES -> stringResource(R.string.zone_source_all)
+                                })
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPickZone(s.zoneSource == AlarmZoneSource.ADDED_CLOCKS) }
                     ) {
-                        Icon(
-                            Icons.Default.PublicOff,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text(stringResource(R.string.time_zone), style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                if (s.zoneId.isBlank()) stringResource(R.string.select_time_zone) else s.zoneId,
-                                style = MaterialTheme.typography.bodyLarge,
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.PublicOff,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
                             )
+                            Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(stringResource(R.string.time_zone), style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    if (s.zoneId.isBlank()) stringResource(R.string.select_time_zone) else s.zoneId,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                            }
                         }
                     }
                 }
@@ -143,13 +177,16 @@ fun AlarmEditScreen(
             item {
                 Text(stringResource(R.string.repeat), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(8.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DayOfWeek.values().forEach { d ->
-                        val selected = DayMask.contains(s.daysMask, d)
-                        FilterChip(
-                            selected = selected,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    orderedDays(firstDay).forEach { d ->
+                        DayChip(
+                            letter = letterFor(d),
+                            selected = DayMask.contains(s.daysMask, d),
+                            fullName = fullDayName(d),
                             onClick = { vm.toggleDay(d) },
-                            label = { Text(shortDayName(d)) },
                         )
                     }
                 }
@@ -222,12 +259,49 @@ private fun SwitchRow(
 }
 
 @Composable
-private fun shortDayName(d: DayOfWeek): String = when (d) {
-    DayOfWeek.MONDAY -> stringResource(R.string.day_mon)
+private fun DayChip(letter: String, selected: Boolean, fullName: String, onClick: () -> Unit) {
+    val bg = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary
+                      else MaterialTheme.colorScheme.outline
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(shape)
+            .background(bg)
+            .border(1.dp, borderColor, shape)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = fullName },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(letter, fontWeight = FontWeight.SemiBold, color = fg, fontSize = 15.sp)
+    }
+}
+
+private fun letterFor(d: DayOfWeek): String = when (d) {
+    DayOfWeek.MONDAY -> "M"
+    DayOfWeek.TUESDAY -> "T"
+    DayOfWeek.WEDNESDAY -> "W"
+    DayOfWeek.THURSDAY -> "T"
+    DayOfWeek.FRIDAY -> "F"
+    DayOfWeek.SATURDAY -> "S"
+    DayOfWeek.SUNDAY -> "S"
+}
+
+@Composable
+private fun fullDayName(d: DayOfWeek): String = when (d) {
+    DayOfWeek.MONDAY -> stringResource(R.string.day_monday)
     DayOfWeek.TUESDAY -> stringResource(R.string.day_tue)
     DayOfWeek.WEDNESDAY -> stringResource(R.string.day_wed)
     DayOfWeek.THURSDAY -> stringResource(R.string.day_thu)
     DayOfWeek.FRIDAY -> stringResource(R.string.day_fri)
     DayOfWeek.SATURDAY -> stringResource(R.string.day_sat)
-    DayOfWeek.SUNDAY -> stringResource(R.string.day_sun)
+    DayOfWeek.SUNDAY -> stringResource(R.string.day_sunday)
+}
+
+private fun orderedDays(first: DayOfWeek): List<DayOfWeek> {
+    val all = DayOfWeek.values().toList()
+    val idx = all.indexOf(first)
+    return all.drop(idx) + all.take(idx)
 }

@@ -27,6 +27,9 @@ interface ClockDao {
 
     @Query("DELETE FROM clocks WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM clocks")
+    suspend fun deleteAll()
 }
 
 @Dao

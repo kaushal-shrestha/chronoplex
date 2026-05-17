@@ -35,6 +35,7 @@ data class AlarmEntity(
     val soundEnabled: Boolean,
     val vibrationEnabled: Boolean,
     val enabled: Boolean,
+    val snoozeUntilMillis: Long? = null,
 ) {
     fun toDomain() = Alarm(
         id = id,
@@ -46,6 +47,7 @@ data class AlarmEntity(
         soundEnabled = soundEnabled,
         vibrationEnabled = vibrationEnabled,
         enabled = enabled,
+        snoozeUntilMillis = snoozeUntilMillis,
     )
 
     companion object {
@@ -59,6 +61,7 @@ data class AlarmEntity(
             soundEnabled = a.soundEnabled,
             vibrationEnabled = a.vibrationEnabled,
             enabled = a.enabled,
+            snoozeUntilMillis = a.snoozeUntilMillis,
         )
     }
 }

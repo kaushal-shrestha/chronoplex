@@ -25,6 +25,8 @@ class ClockRepository(private val dao: ClockDao) {
 
     suspend fun delete(id: Long) = dao.deleteById(id)
 
+    suspend fun deleteAll() = dao.deleteAll()
+
     private fun Clock.clean(): Clock = copy(
         label = Validate.label(label),
         zoneId = Validate.zoneId(zoneId),

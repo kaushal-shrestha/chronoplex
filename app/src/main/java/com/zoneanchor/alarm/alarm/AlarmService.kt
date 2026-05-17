@@ -64,6 +64,12 @@ class AlarmService : Service() {
             val app = applicationContext as ZoneAnchorApp
             val alarm = app.container.alarmRepo.getById(alarmId) ?: run { stopSelf(); return@launch }
 
+            // Alarm has fired — no longer snoozed. Clear the row + the snoozed notification.
+            if (alarm.isSnoozed()) {
+                app.container.alarmRepo.setSnoozeUntil(alarmId, null)
+            }
+            SnoozeNotifier.cancel(applicationContext, alarmId)
+
             acquireWakeLock()
             startForeground(NOTIFICATION_ID, buildNotification(alarm))
 

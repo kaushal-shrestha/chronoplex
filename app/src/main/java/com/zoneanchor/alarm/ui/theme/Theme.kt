@@ -52,6 +52,33 @@ private val palettes: Map<ThemePalette, PaletteSpec> = mapOf(
         secondary = Color(0xFF4A7AC2),
         tertiary = Color(0xFF6F9BD8),
     ),
+    // Codex's five — ported faithfully from CODEX_REWRITE_SPEC.md palette colors.
+    ThemePalette.Daybreak to palette(
+        primary = Color(0xFF006C67),
+        secondary = Color(0xFF2DD4BF),
+        tertiary = Color(0xFFB9F2EC),
+    ),
+    ThemePalette.Harbor to palette(
+        primary = Color(0xFF005B8C),
+        secondary = Color(0xFF60A5FA),
+        tertiary = Color(0xFFBAE6FD),
+    ),
+    ThemePalette.Grove to palette(
+        primary = Color(0xFF237046),
+        secondary = Color(0xFF4ADE80),
+        tertiary = Color(0xFFBBF7D0),
+    ),
+    ThemePalette.Ember to palette(
+        primary = Color(0xFFAD4543),
+        secondary = Color(0xFFFB7185),
+        tertiary = Color(0xFFFECDD3),
+    ),
+    ThemePalette.Twilight to palette(
+        primary = Color(0xFF5C5BB0),
+        secondary = Color(0xFFA78BFA),
+        tertiary = Color(0xFFDDD6FE),
+    ),
+    // Claude's original five.
     ThemePalette.Sunrise to palette(
         primary = Color(0xFFE0664B),
         secondary = Color(0xFFE89461),

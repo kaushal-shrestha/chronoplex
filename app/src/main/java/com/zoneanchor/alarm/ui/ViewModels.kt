@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -27,6 +28,15 @@ class ClocksViewModel(private val container: AppContainer) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun delete(id: Long) = viewModelScope.launch { container.clockRepo.delete(id) }
+
+    fun deleteAll() = viewModelScope.launch { container.clockRepo.deleteAll() }
+
+    /** Wipe the list and seed with a small set of broadly-useful clocks. */
+    fun resetToDefaults() = viewModelScope.launch {
+        container.clockRepo.deleteAll()
+        container.clockRepo.upsert(Clock(label = "Eastern Time", zoneId = "America/New_York"))
+        container.clockRepo.upsert(Clock(label = "UTC Time", zoneId = "UTC"))
+    }
 }
 
 class AlarmsViewModel(private val container: AppContainer) : ViewModel() {
@@ -97,6 +107,8 @@ data class AlarmEditState(
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
     val enabled: Boolean = true,
+    /** Per-edit override; initialized from settings default. */
+    val zoneSource: AlarmZoneSource = AlarmZoneSource.ALL_ZONES,
 )
 
 class AlarmEditViewModel(
@@ -105,30 +117,35 @@ class AlarmEditViewModel(
 ) : ViewModel() {
     val state = MutableStateFlow(AlarmEditState())
 
-    val zoneSource: StateFlow<AlarmZoneSource> = container.settings.alarmZoneSource
-        .stateIn(viewModelScope, SharingStarted.Eagerly, AlarmZoneSource.ALL_ZONES)
-
     init {
         val id = handle.get<Long>("id") ?: 0L
+        // Always seed zoneSource from the user's saved default; per-alarm override happens in the UI.
+        viewModelScope.launch {
+            val defaultSource = container.settings.alarmZoneSource.first()
+            state.update { it.copy(zoneSource = defaultSource) }
+        }
         if (id > 0L) viewModelScope.launch {
             container.alarmRepo.getById(id)?.let { a ->
-                state.value = AlarmEditState(
-                    id = a.id,
-                    label = a.label,
-                    zoneId = a.zoneId,
-                    hour = a.hour,
-                    minute = a.minute,
-                    daysMask = a.daysMask,
-                    soundEnabled = a.soundEnabled,
-                    vibrationEnabled = a.vibrationEnabled,
-                    enabled = a.enabled,
-                )
+                state.update {
+                    it.copy(
+                        id = a.id,
+                        label = a.label,
+                        zoneId = a.zoneId,
+                        hour = a.hour,
+                        minute = a.minute,
+                        daysMask = a.daysMask,
+                        soundEnabled = a.soundEnabled,
+                        vibrationEnabled = a.vibrationEnabled,
+                        enabled = a.enabled,
+                    )
+                }
             }
         } else {
-            // Default the zone to the device's current zone for new alarms.
             state.update { it.copy(zoneId = java.time.ZoneId.systemDefault().id) }
         }
     }
+
+    fun setZoneSource(source: AlarmZoneSource) = state.update { it.copy(zoneSource = source) }
 
     fun setLabel(v: String) = state.update { it.copy(label = v) }
     fun setZone(v: String) = state.update { it.copy(zoneId = v) }
@@ -166,6 +183,7 @@ data class SettingsState(
     val appearance: AppearanceMode = AppearanceMode.SYSTEM,
     val palette: ThemePalette = ThemePalette.Anchor,
     val alarmZoneSource: AlarmZoneSource = AlarmZoneSource.ALL_ZONES,
+    val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
 )
 
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
@@ -173,12 +191,14 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.appearance,
         container.settings.palette,
         container.settings.alarmZoneSource,
-    ) { a, p, z -> SettingsState(a, p, z) }
+        container.settings.firstDayOfWeek,
+    ) { a, p, z, d -> SettingsState(a, p, z, d) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     fun setAppearance(m: AppearanceMode) = viewModelScope.launch { container.settings.setAppearance(m) }
     fun setPalette(p: ThemePalette) = viewModelScope.launch { container.settings.setPalette(p) }
     fun setZoneSource(s: AlarmZoneSource) = viewModelScope.launch { container.settings.setAlarmZoneSource(s) }
+    fun setFirstDayOfWeek(d: DayOfWeek) = viewModelScope.launch { container.settings.setFirstDayOfWeek(d) }
 }
 
 /** Single factory routes every ViewModel through the AppContainer. */
