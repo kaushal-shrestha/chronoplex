@@ -130,4 +130,18 @@
     <string name="timer_state_running">Running</string>
     <string name="timer_state_paused">Paused</string>
     <string name="timer_state_finished">Finished</string>
+
+    <!-- Stopwatches -->
+    <string name="tab_stopwatches">Stopwatch</string>
+    <string name="add_stopwatch">Add stopwatch</string>
+    <string name="empty_stopwatches_title">No stopwatches yet</string>
+    <string name="empty_stopwatches_body">Tap the + button to add a stopwatch.</string>
+    <string name="lap">Lap</string>
+    <string name="laps">Laps</string>
+    <string name="lap_number">Lap %1$d</string>
+    <string name="rename">Rename</string>
+    <string name="rename_stopwatch">Rename stopwatch</string>
+    <string name="stopwatch_state_idle">Ready</string>
+    <string name="stopwatch_state_running">Running</string>
+    <string name="stopwatch_state_paused">Paused</string>
 </resources>

@@ -76,3 +76,33 @@ interface TimerDao {
     @Query("DELETE FROM timers WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
+
+@Dao
+interface StopwatchDao {
+    @Query("SELECT * FROM stopwatches ORDER BY sortOrder ASC")
+    fun observeAll(): Flow<List<StopwatchEntity>>
+
+    @Query("SELECT * FROM stopwatches WHERE id = :id")
+    suspend fun getById(id: Long): StopwatchEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(stopwatch: StopwatchEntity): Long
+
+    @Update
+    suspend fun update(stopwatch: StopwatchEntity)
+
+    @Query("DELETE FROM stopwatches WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM stopwatch_laps WHERE stopwatchId = :stopwatchId ORDER BY lapNumber ASC")
+    fun observeLaps(stopwatchId: Long): Flow<List<StopwatchLapEntity>>
+
+    @Query("SELECT COALESCE(MAX(lapNumber), 0) FROM stopwatch_laps WHERE stopwatchId = :stopwatchId")
+    suspend fun maxLapNumber(stopwatchId: Long): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLap(lap: StopwatchLapEntity)
+
+    @Query("DELETE FROM stopwatch_laps WHERE stopwatchId = :stopwatchId")
+    suspend fun deleteLaps(stopwatchId: Long)
+}

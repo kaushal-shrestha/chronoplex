@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.PublicOff
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
@@ -58,6 +59,7 @@ import com.chronoplex.app.ui.screens.AlarmsScreen
 import com.chronoplex.app.ui.screens.ClockEditScreen
 import com.chronoplex.app.ui.screens.ClocksScreen
 import com.chronoplex.app.ui.screens.SettingsScreen
+import com.chronoplex.app.ui.screens.StopwatchesScreen
 import com.chronoplex.app.ui.screens.TimerEditScreen
 import com.chronoplex.app.ui.screens.TimersScreen
 import com.chronoplex.app.ui.screens.ZonePickerScreen
@@ -66,6 +68,7 @@ object Routes {
     const val CLOCKS = "clocks"
     const val ALARMS = "alarms"
     const val TIMERS = "timers"
+    const val STOPWATCHES = "stopwatches"
     const val SETTINGS = "settings"
     const val CLOCK_EDIT = "clock_edit"
     const val ALARM_EDIT = "alarm_edit"
@@ -91,7 +94,7 @@ fun AppRoot(
 
     val factory = remember(container) { AppViewModelFactory(container) }
 
-    val tabRoutes = setOf(Routes.CLOCKS, Routes.ALARMS, Routes.TIMERS, Routes.SETTINGS)
+    val tabRoutes = setOf(Routes.CLOCKS, Routes.ALARMS, Routes.TIMERS, Routes.STOPWATCHES, Routes.SETTINGS)
     val showBottomBar = currentRoute in tabRoutes
 
     Scaffold(
@@ -115,6 +118,12 @@ fun AppRoot(
                         onClick = { navigateTab(nav, Routes.TIMERS) },
                         icon = { Icon(Icons.Default.HourglassEmpty, contentDescription = null) },
                         label = { Text(stringResource(R.string.tab_timers)) },
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.STOPWATCHES,
+                        onClick = { navigateTab(nav, Routes.STOPWATCHES) },
+                        icon = { Icon(Icons.Default.Timer, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_stopwatches)) },
                     )
                     NavigationBarItem(
                         selected = currentRoute == Routes.SETTINGS,
@@ -162,6 +171,10 @@ fun AppRoot(
             ) {
                 val vm: TimerEditViewModel = viewModel(factory = factory)
                 TimerEditScreen(vm = vm, onClose = { nav.popBackStack() })
+            }
+            composable(Routes.STOPWATCHES) {
+                val vm: StopwatchesViewModel = viewModel(factory = factory)
+                StopwatchesScreen(vm = vm)
             }
             composable(Routes.SETTINGS) {
                 val vm: SettingsViewModel = viewModel(factory = factory)

@@ -46,7 +46,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chronoplex.app.R
-import com.chronoplex.app.domain.TimerFinishMode
 import com.chronoplex.app.ui.DurationField
 import com.chronoplex.app.ui.TimerEditViewModel
 
@@ -144,26 +143,6 @@ fun TimerEditScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-            }
-
-            item {
-                Text(stringResource(R.string.timer_finish_mode), style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(8.dp))
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val modes = listOf(TimerFinishMode.NOTIFICATION, TimerFinishMode.FULL_SCREEN)
-                    modes.forEachIndexed { i, m ->
-                        SegmentedButton(
-                            selected = s.finishMode == m,
-                            onClick = { vm.setFinishMode(m) },
-                            shape = SegmentedButtonDefaults.itemShape(i, modes.size),
-                        ) {
-                            Text(when (m) {
-                                TimerFinishMode.NOTIFICATION -> stringResource(R.string.timer_finish_mode_notification)
-                                TimerFinishMode.FULL_SCREEN -> stringResource(R.string.timer_finish_mode_full_screen)
-                            })
-                        }
-                    }
-                }
             }
         }
     }

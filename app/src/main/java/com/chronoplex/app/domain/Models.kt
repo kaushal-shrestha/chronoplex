@@ -56,6 +56,33 @@ data class Timer(
     }
 }
 
+enum class StopwatchState { IDLE, RUNNING, PAUSED }
+
+data class Stopwatch(
+    val id: Long = 0,
+    val label: String = "",
+    val state: StopwatchState = StopwatchState.IDLE,
+    /** When RUNNING, the absolute epoch-millis when the current segment started. */
+    val startedAtMillis: Long? = null,
+    /** Sum of completed segments before the current one. */
+    val accumulatedMillis: Long = 0L,
+    val sortOrder: Long = System.currentTimeMillis(),
+) {
+    /** Total elapsed millis at [nowMillis]. */
+    fun elapsedMillis(nowMillis: Long = System.currentTimeMillis()): Long = when (state) {
+        StopwatchState.IDLE -> 0L
+        StopwatchState.PAUSED -> accumulatedMillis
+        StopwatchState.RUNNING -> accumulatedMillis +
+            ((startedAtMillis?.let { nowMillis - it } ?: 0L).coerceAtLeast(0L))
+    }
+}
+
+data class StopwatchLap(
+    val stopwatchId: Long,
+    val lapNumber: Int,
+    val totalElapsedMillis: Long,
+)
+
 enum class ThemePalette(val displayName: String, val description: String) {
     Anchor("Anchor", "Material You on Android 12+, deep navy fallback elsewhere"),
     Daybreak("Daybreak", "Clean paper, deep ink, and calm teal"),

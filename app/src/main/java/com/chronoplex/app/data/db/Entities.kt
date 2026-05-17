@@ -4,6 +4,9 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.domain.Clock
+import com.chronoplex.app.domain.Stopwatch
+import com.chronoplex.app.domain.StopwatchLap
+import com.chronoplex.app.domain.StopwatchState
 import com.chronoplex.app.domain.Timer
 import com.chronoplex.app.domain.TimerFinishMode
 import com.chronoplex.app.domain.TimerState
@@ -102,5 +105,48 @@ data class TimerEntity(
             finishMode = t.finishMode.name,
             sortOrder = t.sortOrder,
         )
+    }
+}
+
+@Entity(tableName = "stopwatches")
+data class StopwatchEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val label: String,
+    val state: String,
+    val startedAtMillis: Long?,
+    val accumulatedMillis: Long,
+    val sortOrder: Long,
+) {
+    fun toDomain() = Stopwatch(
+        id = id,
+        label = label,
+        state = runCatching { StopwatchState.valueOf(state) }.getOrElse { StopwatchState.IDLE },
+        startedAtMillis = startedAtMillis,
+        accumulatedMillis = accumulatedMillis,
+        sortOrder = sortOrder,
+    )
+
+    companion object {
+        fun fromDomain(s: Stopwatch) = StopwatchEntity(
+            id = s.id,
+            label = s.label,
+            state = s.state.name,
+            startedAtMillis = s.startedAtMillis,
+            accumulatedMillis = s.accumulatedMillis,
+            sortOrder = s.sortOrder,
+        )
+    }
+}
+
+@Entity(tableName = "stopwatch_laps", primaryKeys = ["stopwatchId", "lapNumber"])
+data class StopwatchLapEntity(
+    val stopwatchId: Long,
+    val lapNumber: Int,
+    val totalElapsedMillis: Long,
+) {
+    fun toDomain() = StopwatchLap(stopwatchId, lapNumber, totalElapsedMillis)
+
+    companion object {
+        fun fromDomain(l: StopwatchLap) = StopwatchLapEntity(l.stopwatchId, l.lapNumber, l.totalElapsedMillis)
     }
 }
