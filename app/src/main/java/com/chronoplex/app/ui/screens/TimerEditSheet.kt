@@ -8,39 +8,37 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backspace
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,96 +51,117 @@ import androidx.compose.ui.unit.sp
 import com.chronoplex.app.R
 import com.chronoplex.app.ui.DurationField
 import com.chronoplex.app.ui.TimerEditViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun TimerEditScreen(
+fun TimerEditSheet(
     vm: TimerEditViewModel,
-    onClose: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     val s by vm.state.collectAsState()
     val groups by vm.groups.collectAsState()
     val groupingEnabled by vm.groupingEnabled.collectAsState()
     var groupPickerOpen by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (s.id == 0L) stringResource(R.string.add_timer) else stringResource(R.string.edit_timer)) },
-                navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cancel))
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { vm.save(onClose) },
-                        enabled = s.isValid,
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = stringResource(R.string.save))
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+    fun dismissAnimated() {
+        scope.launch {
+            sheetState.hide()
+            onDismiss()
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding(),
         ) {
-            item {
-                Text(stringResource(R.string.presets), style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(8.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PresetChip(R.string.preset_1m, 1 * 60_000L, vm)
-                    PresetChip(R.string.preset_5m, 5 * 60_000L, vm)
-                    PresetChip(R.string.preset_10m, 10 * 60_000L, vm)
-                    PresetChip(R.string.preset_15m, 15 * 60_000L, vm)
-                    PresetChip(R.string.preset_30m, 30 * 60_000L, vm)
-                    PresetChip(R.string.preset_1h, 60 * 60_000L, vm)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp, end = 12.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = ::dismissAnimated) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
                 }
-            }
-
-            item {
-                Text(stringResource(R.string.duration), style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                Text(
+                    if (s.id == 0L) stringResource(R.string.add_timer) else stringResource(R.string.edit_timer),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = { vm.save { dismissAnimated() } },
+                    enabled = s.isValid,
                 ) {
-                    DurationCell(
-                        value = s.hours,
-                        unit = stringResource(R.string.hours_short),
-                        focused = s.focusedField == DurationField.HOURS,
-                        modifier = Modifier.weight(1f),
-                        onClick = { vm.setFocus(DurationField.HOURS) },
-                    )
-                    DurationCell(
-                        value = s.minutes,
-                        unit = stringResource(R.string.minutes_short),
-                        focused = s.focusedField == DurationField.MINUTES,
-                        modifier = Modifier.weight(1f),
-                        onClick = { vm.setFocus(DurationField.MINUTES) },
-                    )
-                    DurationCell(
-                        value = s.seconds,
-                        unit = stringResource(R.string.seconds_short),
-                        focused = s.focusedField == DurationField.SECONDS,
-                        modifier = Modifier.weight(1f),
-                        onClick = { vm.setFocus(DurationField.SECONDS) },
-                    )
+                    Text(stringResource(R.string.save))
                 }
             }
 
-            item {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column {
+                    Text(stringResource(R.string.presets), style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(8.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        PresetChip(R.string.preset_1m, 1 * 60_000L, vm)
+                        PresetChip(R.string.preset_5m, 5 * 60_000L, vm)
+                        PresetChip(R.string.preset_10m, 10 * 60_000L, vm)
+                        PresetChip(R.string.preset_15m, 15 * 60_000L, vm)
+                        PresetChip(R.string.preset_30m, 30 * 60_000L, vm)
+                        PresetChip(R.string.preset_1h, 60 * 60_000L, vm)
+                    }
+                }
+
+                Column {
+                    Text(stringResource(R.string.duration), style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        DurationCell(
+                            value = s.hours,
+                            unit = stringResource(R.string.hours_short),
+                            focused = s.focusedField == DurationField.HOURS,
+                            modifier = Modifier.weight(1f),
+                            onClick = { vm.setFocus(DurationField.HOURS) },
+                        )
+                        DurationCell(
+                            value = s.minutes,
+                            unit = stringResource(R.string.minutes_short),
+                            focused = s.focusedField == DurationField.MINUTES,
+                            modifier = Modifier.weight(1f),
+                            onClick = { vm.setFocus(DurationField.MINUTES) },
+                        )
+                        DurationCell(
+                            value = s.seconds,
+                            unit = stringResource(R.string.seconds_short),
+                            focused = s.focusedField == DurationField.SECONDS,
+                            modifier = Modifier.weight(1f),
+                            onClick = { vm.setFocus(DurationField.SECONDS) },
+                        )
+                    }
+                }
+
                 Keypad(
                     onDigit = vm::typeDigit,
                     onBackspace = vm::backspace,
                     onClear = vm::clearField,
                 )
-            }
 
-            item {
                 OutlinedTextField(
                     value = s.label,
                     onValueChange = vm::setLabel,
@@ -151,9 +170,8 @@ fun TimerEditScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-            }
-            if (groupingEnabled) {
-                item {
+
+                if (groupingEnabled) {
                     val currentGroupName = groups.firstOrNull { it.id == s.groupId }?.name
                         ?: stringResource(R.string.ungrouped)
                     OutlinedCard(
@@ -175,6 +193,8 @@ fun TimerEditScreen(
                         }
                     }
                 }
+
+                Spacer(Modifier.height(8.dp))
             }
         }
     }

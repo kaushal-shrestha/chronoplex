@@ -1,9 +1,7 @@
 package com.chronoplex.app.ui
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.chronoplex.app.AppContainer
@@ -135,7 +133,6 @@ data class ClockEditState(
 
 class ClockEditViewModel(
     private val container: AppContainer,
-    private val handle: SavedStateHandle,
 ) : ViewModel() {
     val state = MutableStateFlow(ClockEditState())
 
@@ -145,12 +142,13 @@ class ClockEditViewModel(
     val groupingEnabled: StateFlow<Boolean> = container.settings.clocksGroupingEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    init {
-        val id = handle.get<Long>("id") ?: 0L
-        if (id > 0L) viewModelScope.launch {
-            container.clockRepo.getAll().firstOrNull { it.id == id }?.let {
-                state.value = ClockEditState(id = it.id, label = it.label, zoneId = it.zoneId, groupId = it.groupId)
-            }
+    fun load(id: Long) = viewModelScope.launch {
+        if (id <= 0L) {
+            state.value = ClockEditState()
+            return@launch
+        }
+        container.clockRepo.getAll().firstOrNull { it.id == id }?.let {
+            state.value = ClockEditState(id = it.id, label = it.label, zoneId = it.zoneId, groupId = it.groupId)
         }
     }
 
@@ -196,7 +194,6 @@ data class AlarmEditState(
 
 class AlarmEditViewModel(
     private val container: AppContainer,
-    private val handle: SavedStateHandle,
 ) : ViewModel() {
     val state = MutableStateFlow(AlarmEditState())
 
@@ -206,32 +203,29 @@ class AlarmEditViewModel(
     val groupingEnabled: StateFlow<Boolean> = container.settings.alarmsGroupingEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    init {
-        val id = handle.get<Long>("id") ?: 0L
-        // Always seed zoneSource from the user's saved default; per-alarm override happens in the UI.
-        viewModelScope.launch {
-            val defaultSource = container.settings.alarmZoneSource.first()
-            state.update { it.copy(zoneSource = defaultSource) }
+    fun load(id: Long) = viewModelScope.launch {
+        val defaultSource = container.settings.alarmZoneSource.first()
+        if (id <= 0L) {
+            state.value = AlarmEditState(
+                zoneId = java.time.ZoneId.systemDefault().id,
+                zoneSource = defaultSource,
+            )
+            return@launch
         }
-        if (id > 0L) viewModelScope.launch {
-            container.alarmRepo.getById(id)?.let { a ->
-                state.update {
-                    it.copy(
-                        id = a.id,
-                        label = a.label,
-                        zoneId = a.zoneId,
-                        hour = a.hour,
-                        minute = a.minute,
-                        daysMask = a.daysMask,
-                        soundEnabled = a.soundEnabled,
-                        vibrationEnabled = a.vibrationEnabled,
-                        enabled = a.enabled,
-                        groupId = a.groupId,
-                    )
-                }
-            }
-        } else {
-            state.update { it.copy(zoneId = java.time.ZoneId.systemDefault().id) }
+        container.alarmRepo.getById(id)?.let { a ->
+            state.value = AlarmEditState(
+                id = a.id,
+                label = a.label,
+                zoneId = a.zoneId,
+                hour = a.hour,
+                minute = a.minute,
+                daysMask = a.daysMask,
+                soundEnabled = a.soundEnabled,
+                vibrationEnabled = a.vibrationEnabled,
+                enabled = a.enabled,
+                zoneSource = defaultSource,
+                groupId = a.groupId,
+            )
         }
     }
 
@@ -391,7 +385,6 @@ enum class DurationField { HOURS, MINUTES, SECONDS }
 
 class TimerEditViewModel(
     private val container: AppContainer,
-    private val handle: SavedStateHandle,
 ) : ViewModel() {
     val state = MutableStateFlow(TimerEditState())
 
@@ -401,22 +394,21 @@ class TimerEditViewModel(
     val groupingEnabled: StateFlow<Boolean> = container.settings.timersGroupingEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    init {
-        val id = handle.get<Long>("id") ?: 0L
-        if (id > 0L) viewModelScope.launch {
-            container.timerRepo.getById(id)?.let { t ->
-                val total = t.durationMillis / 1000L
-                state.update {
-                    it.copy(
-                        id = t.id,
-                        label = t.label,
-                        hours = (total / 3600).toInt(),
-                        minutes = ((total % 3600) / 60).toInt(),
-                        seconds = (total % 60).toInt(),
-                        groupId = t.groupId,
-                    )
-                }
-            }
+    fun load(id: Long) = viewModelScope.launch {
+        if (id <= 0L) {
+            state.value = TimerEditState()
+            return@launch
+        }
+        container.timerRepo.getById(id)?.let { t ->
+            val total = t.durationMillis / 1000L
+            state.value = TimerEditState(
+                id = t.id,
+                label = t.label,
+                hours = (total / 3600).toInt(),
+                minutes = ((total % 3600) / 60).toInt(),
+                seconds = (total % 60).toInt(),
+                groupId = t.groupId,
+            )
         }
     }
 
@@ -610,16 +602,15 @@ class StopwatchesViewModel(private val container: AppContainer) : ViewModel() {
 /** Single factory routes every ViewModel through the AppContainer. */
 class AppViewModelFactory(private val container: AppContainer) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
-        val handle = extras.createSavedStateHandle()
         @Suppress("UNCHECKED_CAST")
         return when (modelClass) {
             ClocksViewModel::class.java -> ClocksViewModel(container)
             AlarmsViewModel::class.java -> AlarmsViewModel(container)
             TimersViewModel::class.java -> TimersViewModel(container)
             StopwatchesViewModel::class.java -> StopwatchesViewModel(container)
-            ClockEditViewModel::class.java -> ClockEditViewModel(container, handle)
-            AlarmEditViewModel::class.java -> AlarmEditViewModel(container, handle)
-            TimerEditViewModel::class.java -> TimerEditViewModel(container, handle)
+            ClockEditViewModel::class.java -> ClockEditViewModel(container)
+            AlarmEditViewModel::class.java -> AlarmEditViewModel(container)
+            TimerEditViewModel::class.java -> TimerEditViewModel(container)
             SettingsViewModel::class.java -> SettingsViewModel(container)
             else -> error("Unknown VM: $modelClass")
         } as T

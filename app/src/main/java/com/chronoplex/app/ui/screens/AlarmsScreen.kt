@@ -57,9 +57,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chronoplex.app.R
 import com.chronoplex.app.alarm.AlarmScheduler
+import com.chronoplex.app.AppContainer
 import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.domain.Group
+import com.chronoplex.app.ui.AlarmEditViewModel
 import com.chronoplex.app.ui.AlarmsViewModel
 import kotlinx.coroutines.launch
 import com.chronoplex.app.ui.needsExactAlarmGrant
@@ -76,9 +78,9 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AlarmsScreen(
     vm: AlarmsViewModel,
+    editVm: AlarmEditViewModel,
+    container: AppContainer,
     onOpenExactAlarmSettings: () -> Unit,
-    onAdd: () -> Unit,
-    onEdit: (Alarm) -> Unit,
 ) {
     val alarms by vm.alarms.collectAsState()
     val groups by vm.groups.collectAsState()
@@ -92,10 +94,20 @@ fun AlarmsScreen(
     var manageGroupsOpen by remember { mutableStateOf(false) }
     var moveTarget by remember { mutableStateOf<Alarm?>(null) }
     var ungroupedCollapsed by remember { mutableStateOf(false) }
+    var editSheetOpen by remember { mutableStateOf(false) }
+    var zonePickerRestrict by remember { mutableStateOf<Boolean?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val deletedLabel = stringResource(R.string.alarm_deleted)
     val undoLabel = stringResource(R.string.undo)
+    fun openAdd() {
+        editVm.load(0L)
+        editSheetOpen = true
+    }
+    fun openEdit(alarm: Alarm) {
+        editVm.load(alarm.id)
+        editSheetOpen = true
+    }
     fun handleDelete(alarm: Alarm) {
         vm.delete(alarm)
         scope.launch {
@@ -143,7 +155,7 @@ fun AlarmsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) {
+            FloatingActionButton(onClick = ::openAdd) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_alarm))
             }
         },
@@ -162,7 +174,7 @@ fun AlarmsScreen(
                         AlarmRow(
                             alarm = alarm,
                             groupingEnabled = false,
-                            onClick = { onEdit(alarm) },
+                            onClick = { openEdit(alarm) },
                             onToggle = { vm.toggleEnabled(alarm) },
                             onDelete = { handleDelete(alarm) },
                             onMove = { moveTarget = alarm },
@@ -180,7 +192,7 @@ fun AlarmsScreen(
                                 AlarmRow(
                                     alarm = alarm,
                                     groupingEnabled = true,
-                                    onClick = { onEdit(alarm) },
+                                    onClick = { openEdit(alarm) },
                                     onToggle = { vm.toggleEnabled(alarm) },
                                     onDelete = { handleDelete(alarm) },
                                     onMove = { moveTarget = alarm },
@@ -202,7 +214,7 @@ fun AlarmsScreen(
                                 AlarmRow(
                                     alarm = alarm,
                                     groupingEnabled = true,
-                                    onClick = { onEdit(alarm) },
+                                    onClick = { openEdit(alarm) },
                                     onToggle = { vm.toggleEnabled(alarm) },
                                     onDelete = { handleDelete(alarm) },
                                     onMove = { moveTarget = alarm },
@@ -249,6 +261,32 @@ fun AlarmsScreen(
                 moveTarget = null
             },
             onDismiss = { moveTarget = null },
+        )
+    }
+
+    if (editSheetOpen) {
+        AlarmEditSheet(
+            vm = editVm,
+            onPickZone = { restrict ->
+                editSheetOpen = false
+                zonePickerRestrict = restrict
+            },
+            onDismiss = { editSheetOpen = false },
+        )
+    }
+    zonePickerRestrict?.let { restrict ->
+        ZonePickerSheet(
+            restrictToAdded = restrict,
+            container = container,
+            onPick = { zoneId ->
+                editVm.setZone(zoneId)
+                zonePickerRestrict = null
+                editSheetOpen = true
+            },
+            onDismiss = {
+                zonePickerRestrict = null
+                editSheetOpen = true
+            },
         )
     }
 }
