@@ -34,9 +34,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,6 +62,7 @@ import com.chronoplex.app.R
 import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.Group
 import com.chronoplex.app.ui.ClocksViewModel
+import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlinx.coroutines.delay
@@ -82,6 +88,21 @@ fun ClocksScreen(
     var reorderMode by remember { mutableStateOf(false) }
     // Auto-exit reorder if the list empties out.
     if (clocks.isEmpty() && reorderMode) reorderMode = false
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val deletedLabel = stringResource(R.string.clock_deleted)
+    val undoLabel = stringResource(R.string.undo)
+    fun handleDelete(clock: Clock) {
+        vm.delete(clock.id)
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = deletedLabel,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Long,
+            )
+            if (result == SnackbarResult.ActionPerformed) vm.restore(clock)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -141,6 +162,7 @@ fun ClocksScreen(
                 }
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (reorderMode) {
@@ -162,7 +184,7 @@ fun ClocksScreen(
                     groups = groups,
                     groupingEnabled = groupingEnabled,
                     onEdit = onEdit,
-                    onDelete = { vm.delete(it.id) },
+                    onDelete = ::handleDelete,
                     onMove = { moveTarget = it },
                     onToggleCollapsed = { vm.toggleCollapsed(it) },
                 )
@@ -388,7 +410,11 @@ private fun ClockRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(clock.label, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    clock.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
                 Text(
                     clock.zoneId,
                     style = MaterialTheme.typography.bodySmall,
@@ -587,7 +613,11 @@ private fun sh.calvin.reorderable.ReorderableCollectionItemScope.ClockDragRow(cl
             )
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(clock.label, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    clock.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
                 Text(
                     clock.zoneId,
                     style = MaterialTheme.typography.bodySmall,

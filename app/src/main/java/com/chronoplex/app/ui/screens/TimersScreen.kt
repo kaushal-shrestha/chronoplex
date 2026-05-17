@@ -36,6 +36,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -44,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +62,7 @@ import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Timer
 import com.chronoplex.app.domain.TimerState
 import com.chronoplex.app.ui.TimersViewModel
+import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlinx.coroutines.delay
@@ -77,6 +83,21 @@ fun TimersScreen(
     var ungroupedCollapsed by remember { mutableStateOf(false) }
     var reorderMode by remember { mutableStateOf(false) }
     if (timers.isEmpty() && reorderMode) reorderMode = false
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val deletedLabel = stringResource(R.string.timer_deleted)
+    val undoLabel = stringResource(R.string.undo)
+    fun handleDelete(timer: Timer) {
+        vm.delete(timer)
+        scope.launch {
+            val r = snackbarHostState.showSnackbar(
+                message = deletedLabel,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Long,
+            )
+            if (r == SnackbarResult.ActionPerformed) vm.restore(timer)
+        }
+    }
 
     // Single per-screen tick drives every running timer's countdown.
     val now by produceState(initialValue = System.currentTimeMillis()) {
@@ -132,6 +153,7 @@ fun TimersScreen(
                 }
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (reorderMode) {
@@ -167,7 +189,7 @@ fun TimersScreen(
                                 }
                             },
                             onReset = { vm.reset(timer) },
-                            onDelete = { vm.delete(timer) },
+                            onDelete = { handleDelete(timer) },
                             onMove = { moveTarget = timer },
                         )
                     }
@@ -192,7 +214,7 @@ fun TimersScreen(
                                         }
                                     },
                                     onReset = { vm.reset(timer) },
-                                    onDelete = { vm.delete(timer) },
+                                    onDelete = { handleDelete(timer) },
                                     onMove = { moveTarget = timer },
                                 )
                             }
@@ -221,7 +243,7 @@ fun TimersScreen(
                                         }
                                     },
                                     onReset = { vm.reset(timer) },
-                                    onDelete = { vm.delete(timer) },
+                                    onDelete = { handleDelete(timer) },
                                     onMove = { moveTarget = timer },
                                 )
                             }
@@ -283,7 +305,11 @@ private fun TimerRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     val label = timer.label.ifBlank { stateLabel(timer.state) }
-                    Text(label, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (timer.label.isNotBlank()) FontWeight.Bold else FontWeight.Normal,
+                    )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         formatDuration(remaining),
@@ -492,6 +518,7 @@ private fun sh.calvin.reorderable.ReorderableCollectionItemScope.TimerDragRow(ti
                 Text(
                     timer.label.ifBlank { stateLabel(timer.state) },
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (timer.label.isNotBlank()) FontWeight.Bold else FontWeight.Normal,
                 )
                 Text(
                     formatDuration(timer.durationMillis),

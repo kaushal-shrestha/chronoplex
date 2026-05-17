@@ -52,7 +52,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 + resource shrinking. Tree-shakes the ~3000 icons in
+            // material-icons-extended down to the handful we reference,
+            // strips unused Compose internals, etc. Consumer ProGuard
+            // rules from Compose/Room/Nav/reorderable handle reflection.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
