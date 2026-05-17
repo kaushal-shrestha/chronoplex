@@ -38,6 +38,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,9 +73,16 @@ fun AlarmsScreen(
     val alarms by vm.alarms.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     var showPermissionDialog by remember { mutableStateOf(false) }
-    val exactOk = remember { !needsExactAlarmGrant(context) }
-    val notifOk = remember { !needsNotificationGrant(context) }
+    var exactOk by remember { mutableStateOf(!needsExactAlarmGrant(context)) }
+    var notifOk by remember { mutableStateOf(!needsNotificationGrant(context)) }
     val allPermsOk = exactOk && notifOk
+
+    // Re-check permissions whenever we come back to the foreground — e.g. after the
+    // user toggles a permission in system settings and returns.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        exactOk = !needsExactAlarmGrant(context)
+        notifOk = !needsNotificationGrant(context)
+    }
 
     Scaffold(
         topBar = {
