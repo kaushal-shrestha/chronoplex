@@ -113,10 +113,19 @@ fun TimerEditSheet(
                     }
                 }
                 TextButton(
-                    onClick = rememberTapFeedback { vm.save { dismissAnimated() } },
+                    onClick = rememberTapFeedback { vm.save(autoStart = false) { dismissAnimated() } },
                     enabled = s.isValid,
                 ) {
                     Text(stringResource(R.string.save))
+                }
+                TextButton(
+                    onClick = rememberTapFeedback { vm.save(autoStart = true) { dismissAnimated() } },
+                    enabled = s.isValid,
+                ) {
+                    Text(
+                        stringResource(R.string.start),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
 

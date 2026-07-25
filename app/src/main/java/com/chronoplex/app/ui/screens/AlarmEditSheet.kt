@@ -89,8 +89,19 @@ fun AlarmEditSheet(
     val scope = rememberCoroutineScope()
 
     val timeState = rememberTimePickerState(initialHour = s.hour, initialMinute = s.minute, is24Hour = is24Hour)
+    // Re-uses our standard tap feedback (click sound + haptic) for any TimePicker tick:
+    // dial drag, dial tap, AM/PM toggle, and tapping the hour/minute display.
+    val pickerFeedback = rememberTapFeedback {}
+    var firstTimeTick by remember { mutableStateOf(true) }
     LaunchedEffect(timeState.hour, timeState.minute) {
         vm.setTime(timeState.hour, timeState.minute)
+        if (firstTimeTick) firstTimeTick = false
+        else pickerFeedback()
+    }
+    var firstSelTick by remember { mutableStateOf(true) }
+    LaunchedEffect(timeState.selection) {
+        if (firstSelTick) firstSelTick = false
+        else pickerFeedback()
     }
 
     fun dismissAnimated() {

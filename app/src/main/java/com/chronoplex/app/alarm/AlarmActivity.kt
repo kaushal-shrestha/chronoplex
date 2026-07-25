@@ -222,14 +222,14 @@ private fun AlarmScreen(
                 listOf(1, 5, 10).forEach { mins ->
                     OutlinedButton(
                         onClick = { onSnooze(mins) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).height(56.dp),
                     ) { Text(stringResource(R.string.snooze_minutes, mins)) }
                 }
             }
             Spacer(Modifier.height(12.dp))
             Button(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().height(64.dp).padding(vertical = 4.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
