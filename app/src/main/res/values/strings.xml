@@ -57,6 +57,21 @@
     <string name="about_copyright">© 2026 Kaushal Shrestha</string>
     <string name="about_version">Version %1$s</string>
     <string name="close">Close</string>
+    <string name="convert_time">Convert time</string>
+    <string name="hide_converter">Hide converter</string>
+    <string name="converter_reference_hint">Select a clock below to use as the reference for conversion.</string>
+    <string name="converter_when_it_is">When it is</string>
+    <string name="converter_now">Now</string>
+    <string name="converter_no_clocks">Add clocks to see converted times here.</string>
+    <string name="converter_source">Source</string>
+    <string name="in_zone_source">in</string>
+    <string name="pick_time">Pick time</string>
+    <string name="previous_hour">-1h</string>
+    <string name="next_hour">+1h</string>
+    <string name="next_day">+1d</string>
+    <string name="yesterday">Yesterday</string>
+    <string name="today">Today</string>
+    <string name="tomorrow">Tomorrow</string>
 
     <string name="appearance">Appearance</string>
     <string name="appearance_system">Follow system</string>
