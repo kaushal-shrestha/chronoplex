@@ -443,7 +443,7 @@ class TimerEditViewModel(
         it.copy(digits = millisToDigits(millis))
     }
 
-    fun save(onDone: () -> Unit) = viewModelScope.launch {
+    fun save(autoStart: Boolean = false, onDone: () -> Unit) = viewModelScope.launch {
         val s = state.value
         if (!s.isValid) return@launch
         val timer = Timer(
@@ -456,7 +456,11 @@ class TimerEditViewModel(
             sortOrder = System.currentTimeMillis(),
             groupId = s.groupId,
         )
-        container.timerRepo.upsert(timer)
+        val newId = container.timerRepo.upsert(timer)
+        if (autoStart) {
+            val saved = timer.copy(id = if (timer.id == 0L) newId else timer.id)
+            container.timerScheduler.start(saved)
+        }
         onDone()
     }
 

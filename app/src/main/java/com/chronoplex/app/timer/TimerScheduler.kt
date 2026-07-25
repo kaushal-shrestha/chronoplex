@@ -11,8 +11,8 @@ import com.chronoplex.app.domain.TimerState
 
 /**
  * Drives Timer lifecycle. Keeps the database row in sync with the OS-level
- * AlarmManager trigger, and dispatches the [TimerNotifier] / full-screen activity
- * via [TimerReceiver] when a timer fires.
+ * AlarmManager trigger, and dispatches the [TimerNotifier] alert path via
+ * [TimerReceiver] when a timer fires.
  *
  * State machine:
  *   IDLE ──start──▶ RUNNING ──fires──▶ FINISHED ──dismiss──▶ IDLE

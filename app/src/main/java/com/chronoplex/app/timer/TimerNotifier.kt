@@ -1,97 +1,19 @@
 package com.chronoplex.app.timer
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.media.AudioAttributes
-import android.media.RingtoneManager
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import com.chronoplex.app.R
 import com.chronoplex.app.domain.Timer
 
 /**
- * Posts the "timer finished" notification and (optionally) hooks up a full-screen
- * intent to [TimerExpiredActivity] for users who prefer the alarm-style takeover.
+ * Bridges the timer state machine to the foreground alert service. Timer audio is
+ * played by [TimerService], not by the notification channel, so it keeps looping
+ * until the user explicitly stops or extends the finished timer.
  */
 object TimerNotifier {
-    private const val CHANNEL_ID = "timer_finished"
-
     fun showFinishedNotification(context: Context, timer: Timer) {
-        ensureChannel(context)
-
-        val title = timer.label.ifBlank { context.getString(R.string.timer_finished_default_title) }
-        val text = context.getString(R.string.timer_finished_body)
-
-        val dismissPi = action(context, timer.id, TimerReceiver.ACTION_DISMISS, 1)
-        val addMinutePi = action(context, timer.id, TimerReceiver.ACTION_ADD_MINUTE, 2)
-
-        // No setDeleteIntent: when we programmatically cancel the notification on
-        // addMinute, some Android versions fire deleteIntent — that would race with
-        // addMinute's RUNNING update and silently flip the timer back to IDLE.
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .addAction(0, context.getString(R.string.add_minute), addMinutePi)
-            .addAction(0, context.getString(R.string.stop), dismissPi)
-            .build()
-
-        NotificationManagerCompat.from(context).notify(notificationId(timer.id), notification)
+        TimerService.start(context, timer.id)
     }
 
     fun cancel(context: Context, timerId: Long) {
-        NotificationManagerCompat.from(context).cancel(notificationId(timerId))
-    }
-
-    private fun action(
-        context: Context,
-        timerId: Long,
-        action: String,
-        salt: Int,
-    ): PendingIntent {
-        val intent = Intent(context, TimerReceiver::class.java).apply {
-            this.action = action
-            putExtra(TimerReceiver.EXTRA_TIMER_ID, timerId)
-            data = android.net.Uri.parse("chronoplex://timer/$timerId/$action")
-        }
-        return PendingIntent.getBroadcast(
-            context,
-            (2_000_000 + timerId * 10 + salt).toInt(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-    }
-
-    private fun notificationId(timerId: Long): Int = 3000 + timerId.toInt()
-
-    private fun ensureChannel(context: Context) {
-        val nm = context.getSystemService(NotificationManager::class.java)
-        if (nm.getNotificationChannel(CHANNEL_ID) != null) return
-        val attrs = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ALARM)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-        val sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-        nm.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID,
-                context.getString(R.string.timer_channel_name),
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                description = context.getString(R.string.timer_channel_description)
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 600, 400, 600)
-                setSound(sound, attrs)
-                setBypassDnd(true)
-            }
-        )
+        TimerService.stop(context, timerId)
     }
 }
