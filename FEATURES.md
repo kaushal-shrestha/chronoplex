@@ -203,6 +203,7 @@ The app currently has five primary tabs:
 Run the core verification suite with:
 
 ```sh
+cd android
 ./gradlew :app:assembleDebug :app:testDebugUnitTest
 ```
 
