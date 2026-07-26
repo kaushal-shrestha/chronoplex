@@ -60,6 +60,7 @@ import com.chronoplex.app.R
 import com.chronoplex.app.alarm.AlarmScheduler
 import com.chronoplex.app.AppContainer
 import com.chronoplex.app.domain.Alarm
+import com.chronoplex.app.domain.AlarmRepeatType
 import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.domain.Group
 import com.chronoplex.app.ui.AlarmEditViewModel
@@ -71,6 +72,7 @@ import com.chronoplex.app.ui.needsExactAlarmGrant
 import com.chronoplex.app.ui.needsNotificationGrant
 import com.chronoplex.app.ui.openAppNotificationSettings
 import java.time.Duration
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
@@ -481,14 +483,32 @@ private fun AlarmRow(
 
 @Composable
 private fun repeatLabel(alarm: Alarm): String {
-    if (alarm.isOneShot) return stringResource(R.string.repeat_once)
+    return when (alarm.effectiveRepeatType) {
+        AlarmRepeatType.ONCE -> stringResource(R.string.repeat_once)
+        AlarmRepeatType.WEEKLY -> weeklyRepeatLabel(alarm)
+        AlarmRepeatType.MONTHLY_DAY -> {
+            val base = "day ${alarm.monthlyDay}"
+            if (alarm.repeatInterval == 1) "Monthly on $base" else "Every ${alarm.repeatInterval} months on $base"
+        }
+        AlarmRepeatType.MONTHLY_WEEKDAY -> {
+            val weekday = shortDayName(DayOfWeek.of(alarm.monthlyWeekday.coerceIn(1, 7)))
+            val ordinal = ordinalLabel(alarm.monthlyOrdinal)
+            val base = "$ordinal $weekday"
+            if (alarm.repeatInterval == 1) "Monthly on the $base" else "Every ${alarm.repeatInterval} months on the $base"
+        }
+    }
+}
+
+@Composable
+private fun weeklyRepeatLabel(alarm: Alarm): String {
     val mask = alarm.daysMask
-    if (mask == DayMask.EVERY_DAY) return stringResource(R.string.repeat_every_day)
-    if (mask == DayMask.WEEKDAYS) return stringResource(R.string.repeat_weekdays)
-    if (mask == DayMask.WEEKENDS) return stringResource(R.string.repeat_weekends)
-    // Collect names up-front so the join lambda doesn't invoke @Composable functions.
-    val names = alarm.daysOfWeek.sortedBy { it.value }.map { shortDayName(it) }
-    return names.joinToString(", ")
+    val base = when (mask) {
+        DayMask.EVERY_DAY -> stringResource(R.string.repeat_every_day)
+        DayMask.WEEKDAYS -> stringResource(R.string.repeat_weekdays)
+        DayMask.WEEKENDS -> stringResource(R.string.repeat_weekends)
+        else -> alarm.daysOfWeek.sortedBy { it.value }.map { shortDayName(it) }.joinToString(", ")
+    }
+    return if (alarm.repeatInterval == 1) base else "Every ${alarm.repeatInterval} weeks: $base"
 }
 
 @Composable
@@ -500,6 +520,15 @@ private fun shortDayName(d: java.time.DayOfWeek): String = when (d) {
     java.time.DayOfWeek.FRIDAY -> stringResource(R.string.day_fri)
     java.time.DayOfWeek.SATURDAY -> stringResource(R.string.day_sat)
     java.time.DayOfWeek.SUNDAY -> stringResource(R.string.day_sun)
+}
+
+@Composable
+private fun ordinalLabel(ordinal: Int): String = when (ordinal) {
+    1 -> stringResource(R.string.repeat_first).lowercase()
+    2 -> stringResource(R.string.repeat_second).lowercase()
+    3 -> stringResource(R.string.repeat_third).lowercase()
+    4 -> stringResource(R.string.repeat_fourth).lowercase()
+    else -> stringResource(R.string.repeat_last).lowercase()
 }
 
 @Composable

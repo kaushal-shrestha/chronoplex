@@ -100,6 +100,23 @@
     <string name="repeat_weekdays">Weekdays</string>
     <string name="repeat_weekends">Weekends</string>
     <string name="repeat_every_day">Every day</string>
+    <string name="repeat_advanced">Advanced</string>
+    <string name="repeat_advanced_active">Advanced repeat</string>
+    <string name="repeat_weekly">Weekly</string>
+    <string name="repeat_monthly_day">Monthly date</string>
+    <string name="repeat_monthly_weekday">Monthly weekday</string>
+    <string name="repeat_every">Every</string>
+    <string name="repeat_weeks">week(s)</string>
+    <string name="repeat_months">month(s)</string>
+    <string name="repeat_start_date">Start date</string>
+    <string name="repeat_day_of_month">Day of month</string>
+    <string name="repeat_first">First</string>
+    <string name="repeat_second">Second</string>
+    <string name="repeat_third">Third</string>
+    <string name="repeat_fourth">Fourth</string>
+    <string name="repeat_last">Last</string>
+    <string name="decrease">Decrease</string>
+    <string name="increase">Increase</string>
 
     <string name="sound_default">Default alarm sound</string>
     <string name="sound_silent">Silent</string>

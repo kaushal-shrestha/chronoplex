@@ -1,6 +1,7 @@
 package com.chronoplex.app.domain
 
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.ZoneId
 
 /** A user-defined collection that items of one entity type can belong to. */
@@ -32,12 +33,24 @@ data class Alarm(
     /** When this alarm is currently snoozed, the epoch millis at which it will next ring. */
     val snoozeUntilMillis: Long? = null,
     val groupId: Long? = null,
+    val repeatType: AlarmRepeatType = AlarmRepeatType.WEEKLY,
+    val repeatInterval: Int = 1,
+    /** Local ISO date (yyyy-MM-dd) used as the interval anchor for advanced repeats. */
+    val repeatStartDate: String = "",
+    val monthlyDay: Int = 1,
+    /** 1..4 for first through fourth, -1 for last. */
+    val monthlyOrdinal: Int = 1,
+    val monthlyWeekday: Int = DayOfWeek.MONDAY.value,
 ) {
     val daysOfWeek: Set<DayOfWeek> get() = DayMask.toDays(daysMask)
-    val isOneShot: Boolean get() = daysMask == 0
+    val effectiveRepeatType: AlarmRepeatType get() =
+        if (repeatType == AlarmRepeatType.WEEKLY && daysMask == 0) AlarmRepeatType.ONCE else repeatType
+    val isOneShot: Boolean get() = effectiveRepeatType == AlarmRepeatType.ONCE
     fun isSnoozed(nowMillis: Long = System.currentTimeMillis()): Boolean =
         (snoozeUntilMillis ?: 0L) > nowMillis
 }
+
+enum class AlarmRepeatType { ONCE, WEEKLY, MONTHLY_DAY, MONTHLY_WEEKDAY }
 
 enum class AppearanceMode { SYSTEM, LIGHT, DARK }
 
@@ -144,4 +157,12 @@ object Validate {
     fun hour(h: Int): Int = h.coerceIn(0, 23)
     fun minute(m: Int): Int = m.coerceIn(0, 59)
     fun daysMask(mask: Int): Int = DayMask.sanitize(mask)
+    fun repeatType(type: AlarmRepeatType?, daysMask: Int): AlarmRepeatType =
+        type ?: if (DayMask.sanitize(daysMask) == 0) AlarmRepeatType.ONCE else AlarmRepeatType.WEEKLY
+    fun repeatInterval(interval: Int): Int = interval.coerceIn(1, 99)
+    fun repeatStartDate(value: String?): String =
+        value?.takeIf { runCatching { LocalDate.parse(it) }.isSuccess }.orEmpty()
+    fun monthlyDay(day: Int): Int = day.coerceIn(1, 31)
+    fun monthlyOrdinal(ordinal: Int): Int = if (ordinal == -1) -1 else ordinal.coerceIn(1, 4)
+    fun monthlyWeekday(value: Int): Int = value.coerceIn(1, 7)
 }

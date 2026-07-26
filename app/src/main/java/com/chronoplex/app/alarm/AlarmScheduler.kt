@@ -7,11 +7,17 @@ import android.content.Intent
 import android.os.Build
 import com.chronoplex.app.MainActivity
 import com.chronoplex.app.domain.Alarm
+import com.chronoplex.app.domain.AlarmRepeatType
 import com.chronoplex.app.domain.DayMask
+import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.YearMonth
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 
 class AlarmScheduler(private val context: Context) {
 
@@ -108,15 +114,96 @@ class AlarmScheduler(private val context: Context) {
             val zone = runCatching { ZoneId.of(alarm.zoneId) }.getOrElse { ZoneId.systemDefault() }
             val nowInstant = Instant.ofEpochMilli(fromMillis)
             val zoneNow = nowInstant.atZone(zone)
-            val oneShot = alarm.isOneShot
+            return when (alarm.effectiveRepeatType) {
+                AlarmRepeatType.ONCE -> nextOneShot(alarm, zone, zoneNow, nowInstant)
+                AlarmRepeatType.WEEKLY -> nextWeekly(alarm, zone, zoneNow, nowInstant)
+                AlarmRepeatType.MONTHLY_DAY -> nextMonthlyDay(alarm, zone, zoneNow, nowInstant)
+                AlarmRepeatType.MONTHLY_WEEKDAY -> nextMonthlyWeekday(alarm, zone, zoneNow, nowInstant)
+            }
+        }
 
-            for (offset in 0..8) {
+        private fun nextOneShot(
+            alarm: Alarm,
+            zone: ZoneId,
+            zoneNow: ZonedDateTime,
+            nowInstant: Instant,
+        ): Long? {
+            for (offset in 0..2) {
                 val local = zoneNow.toLocalDate().plusDays(offset.toLong())
                     .atTime(alarm.hour, alarm.minute)
                 val candidate = candidateOrNull(local, zone) ?: continue
                 if (!candidate.toInstant().isAfter(nowInstant)) continue
-                if (!oneShot && !DayMask.contains(alarm.daysMask, candidate.dayOfWeek)) continue
                 return candidate.toInstant().toEpochMilli()
+            }
+            return null
+        }
+
+        private fun nextWeekly(
+            alarm: Alarm,
+            zone: ZoneId,
+            zoneNow: ZonedDateTime,
+            nowInstant: Instant,
+        ): Long? {
+            val selectedDays = DayMask.sanitize(alarm.daysMask)
+            if (selectedDays == 0) return null
+            val interval = alarm.repeatInterval.coerceIn(1, 99)
+            val anchor = startDateOrToday(alarm, zoneNow)
+            val horizonDays = 8 + interval * 7
+            for (offset in 0..horizonDays) {
+                val date = zoneNow.toLocalDate().plusDays(offset.toLong())
+                if (date.isBefore(anchor)) continue
+                if (!isOnWeeklyInterval(date, anchor, interval)) continue
+                val local = date.atTime(alarm.hour, alarm.minute)
+                val candidate = candidateOrNull(local, zone) ?: continue
+                if (!candidate.toInstant().isAfter(nowInstant)) continue
+                if (!DayMask.contains(selectedDays, candidate.dayOfWeek)) continue
+                return candidate.toInstant().toEpochMilli()
+            }
+            return null
+        }
+
+        private fun nextMonthlyDay(
+            alarm: Alarm,
+            zone: ZoneId,
+            zoneNow: ZonedDateTime,
+            nowInstant: Instant,
+        ): Long? {
+            val anchor = startDateOrToday(alarm, zoneNow)
+            val interval = alarm.repeatInterval.coerceIn(1, 99)
+            val day = alarm.monthlyDay.coerceIn(1, 31)
+            val firstMonth = if (zoneNow.toLocalDate().isBefore(anchor)) YearMonth.from(anchor)
+                             else YearMonth.from(zoneNow.toLocalDate())
+            for (offset in 0..2400) {
+                val month = firstMonth.plusMonths(offset.toLong())
+                if (!isOnMonthlyInterval(month, YearMonth.from(anchor), interval)) continue
+                if (day > month.lengthOfMonth()) continue
+                val date = month.atDay(day)
+                if (date.isBefore(anchor)) continue
+                val candidate = candidateOrNull(date.atTime(alarm.hour, alarm.minute), zone) ?: continue
+                if (candidate.toInstant().isAfter(nowInstant)) return candidate.toInstant().toEpochMilli()
+            }
+            return null
+        }
+
+        private fun nextMonthlyWeekday(
+            alarm: Alarm,
+            zone: ZoneId,
+            zoneNow: ZonedDateTime,
+            nowInstant: Instant,
+        ): Long? {
+            val anchor = startDateOrToday(alarm, zoneNow)
+            val interval = alarm.repeatInterval.coerceIn(1, 99)
+            val weekday = DayOfWeek.of(alarm.monthlyWeekday.coerceIn(1, 7))
+            val ordinal = if (alarm.monthlyOrdinal == -1) -1 else alarm.monthlyOrdinal.coerceIn(1, 4)
+            val firstMonth = if (zoneNow.toLocalDate().isBefore(anchor)) YearMonth.from(anchor)
+                             else YearMonth.from(zoneNow.toLocalDate())
+            for (offset in 0..2400) {
+                val month = firstMonth.plusMonths(offset.toLong())
+                if (!isOnMonthlyInterval(month, YearMonth.from(anchor), interval)) continue
+                val date = month.atDay(1).with(TemporalAdjusters.dayOfWeekInMonth(ordinal, weekday))
+                if (YearMonth.from(date) != month || date.isBefore(anchor)) continue
+                val candidate = candidateOrNull(date.atTime(alarm.hour, alarm.minute), zone) ?: continue
+                if (candidate.toInstant().isAfter(nowInstant)) return candidate.toInstant().toEpochMilli()
             }
             return null
         }
@@ -126,6 +213,21 @@ class AlarmScheduler(private val context: Context) {
             if (offsets.isEmpty()) return null
             val candidate = ZonedDateTime.ofLocal(local, zoneId, offsets.first())
             return if (candidate.hour == local.hour && candidate.minute == local.minute) candidate else null
+        }
+
+        private fun startDateOrToday(alarm: Alarm, zoneNow: ZonedDateTime): LocalDate =
+            runCatching { LocalDate.parse(alarm.repeatStartDate) }.getOrElse { zoneNow.toLocalDate() }
+
+        private fun isOnWeeklyInterval(date: LocalDate, anchor: LocalDate, interval: Int): Boolean {
+            val anchorWeek = anchor.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            val dateWeek = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            val weeks = ChronoUnit.WEEKS.between(anchorWeek, dateWeek)
+            return weeks >= 0 && weeks % interval == 0L
+        }
+
+        private fun isOnMonthlyInterval(month: YearMonth, anchor: YearMonth, interval: Int): Boolean {
+            val months = ChronoUnit.MONTHS.between(anchor, month)
+            return months >= 0 && months % interval == 0L
         }
     }
 }

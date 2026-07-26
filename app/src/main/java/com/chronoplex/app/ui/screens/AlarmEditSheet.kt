@@ -20,8 +20,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.PublicOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -62,7 +66,9 @@ import androidx.compose.ui.unit.sp
 import com.chronoplex.app.ChronoplexApp
 import com.chronoplex.app.R
 import com.chronoplex.app.data.AlarmZoneSource
+import com.chronoplex.app.domain.AlarmRepeatType
 import com.chronoplex.app.domain.DayMask
+import com.chronoplex.app.ui.AlarmEditState
 import com.chronoplex.app.ui.AlarmEditViewModel
 import com.chronoplex.app.ui.rememberTapFeedback
 import com.chronoplex.app.ui.rememberToggleFeedback
@@ -87,6 +93,7 @@ fun AlarmEditSheet(
         .collectAsState(initial = DayOfWeek.MONDAY)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    var advancedRepeatOpen by remember { mutableStateOf(false) }
 
     val timeState = rememberTimePickerState(initialHour = s.hour, initialMinute = s.minute, is24Hour = is24Hour)
     // Re-uses our standard tap feedback (click sound + haptic) for any TimePicker tick:
@@ -217,46 +224,13 @@ fun AlarmEditSheet(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                Column {
-                    Text(stringResource(R.string.repeat), style = MaterialTheme.typography.labelLarge)
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        orderedDays(firstDay).forEach { d ->
-                            DayChip(
-                                letter = letterFor(d),
-                                selected = DayMask.contains(s.daysMask, d),
-                                fullName = fullDayName(d),
-                                onClick = { vm.toggleDay(d) },
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = s.daysMask == 0,
-                            onClick = rememberTapFeedback { vm.setDaysMask(0) },
-                            label = { Text(stringResource(R.string.repeat_once)) },
-                        )
-                        FilterChip(
-                            selected = s.daysMask == DayMask.WEEKDAYS,
-                            onClick = rememberTapFeedback { vm.setDaysMask(DayMask.WEEKDAYS) },
-                            label = { Text(stringResource(R.string.repeat_weekdays)) },
-                        )
-                        FilterChip(
-                            selected = s.daysMask == DayMask.WEEKENDS,
-                            onClick = rememberTapFeedback { vm.setDaysMask(DayMask.WEEKENDS) },
-                            label = { Text(stringResource(R.string.repeat_weekends)) },
-                        )
-                        FilterChip(
-                            selected = s.daysMask == DayMask.EVERY_DAY,
-                            onClick = rememberTapFeedback { vm.setDaysMask(DayMask.EVERY_DAY) },
-                            label = { Text(stringResource(R.string.repeat_every_day)) },
-                        )
-                    }
-                }
+                RepeatSection(
+                    state = s,
+                    vm = vm,
+                    firstDay = firstDay,
+                    advancedOpen = advancedRepeatOpen,
+                    onAdvancedOpenChange = { advancedRepeatOpen = it },
+                )
 
                 SwitchRow(
                     label = stringResource(R.string.sound),
@@ -333,6 +307,205 @@ private fun SwitchRow(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RepeatSection(
+    state: AlarmEditState,
+    vm: AlarmEditViewModel,
+    firstDay: DayOfWeek,
+    advancedOpen: Boolean,
+    onAdvancedOpenChange: (Boolean) -> Unit,
+) {
+    val advancedActive = state.repeatType == AlarmRepeatType.MONTHLY_DAY ||
+        state.repeatType == AlarmRepeatType.MONTHLY_WEEKDAY ||
+        state.repeatInterval > 1
+    Column {
+        Text(stringResource(R.string.repeat), style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(8.dp))
+        if (state.repeatType != AlarmRepeatType.MONTHLY_DAY &&
+            state.repeatType != AlarmRepeatType.MONTHLY_WEEKDAY
+        ) {
+            DaySelector(
+                firstDay = firstDay,
+                selected = { DayMask.contains(state.daysMask, it) },
+                onClick = { vm.toggleDay(it) },
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = state.effectiveRepeatType == AlarmRepeatType.ONCE,
+                onClick = rememberTapFeedback { vm.setDaysMask(0) },
+                label = { Text(stringResource(R.string.repeat_once)) },
+            )
+            FilterChip(
+                selected = state.repeatType == AlarmRepeatType.WEEKLY &&
+                    state.repeatInterval == 1 &&
+                    state.daysMask == DayMask.WEEKDAYS,
+                onClick = rememberTapFeedback { vm.setDaysMask(DayMask.WEEKDAYS) },
+                label = { Text(stringResource(R.string.repeat_weekdays)) },
+            )
+            FilterChip(
+                selected = state.repeatType == AlarmRepeatType.WEEKLY &&
+                    state.repeatInterval == 1 &&
+                    state.daysMask == DayMask.WEEKENDS,
+                onClick = rememberTapFeedback { vm.setDaysMask(DayMask.WEEKENDS) },
+                label = { Text(stringResource(R.string.repeat_weekends)) },
+            )
+            FilterChip(
+                selected = state.repeatType == AlarmRepeatType.WEEKLY &&
+                    state.repeatInterval == 1 &&
+                    state.daysMask == DayMask.EVERY_DAY,
+                onClick = rememberTapFeedback { vm.setDaysMask(DayMask.EVERY_DAY) },
+                label = { Text(stringResource(R.string.repeat_every_day)) },
+            )
+        }
+        TextButton(
+            onClick = rememberTapFeedback {
+                if (!advancedOpen && state.effectiveRepeatType == AlarmRepeatType.ONCE) {
+                    vm.setRepeatType(AlarmRepeatType.WEEKLY)
+                }
+                onAdvancedOpenChange(!advancedOpen)
+            },
+            modifier = Modifier.padding(top = 4.dp),
+        ) {
+            Icon(
+                if (advancedOpen) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+            )
+            Text(stringResource(if (advancedActive) R.string.repeat_advanced_active else R.string.repeat_advanced))
+        }
+        if (advancedOpen) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = state.repeatType == AlarmRepeatType.WEEKLY,
+                        onClick = rememberTapFeedback { vm.setRepeatType(AlarmRepeatType.WEEKLY) },
+                        label = { Text(stringResource(R.string.repeat_weekly)) },
+                    )
+                    FilterChip(
+                        selected = state.repeatType == AlarmRepeatType.MONTHLY_DAY,
+                        onClick = rememberTapFeedback { vm.setRepeatType(AlarmRepeatType.MONTHLY_DAY) },
+                        label = { Text(stringResource(R.string.repeat_monthly_day)) },
+                    )
+                    FilterChip(
+                        selected = state.repeatType == AlarmRepeatType.MONTHLY_WEEKDAY,
+                        onClick = rememberTapFeedback { vm.setRepeatType(AlarmRepeatType.MONTHLY_WEEKDAY) },
+                        label = { Text(stringResource(R.string.repeat_monthly_weekday)) },
+                    )
+                }
+                IntervalRow(
+                    interval = state.repeatInterval,
+                    unit = stringResource(
+                        if (state.repeatType == AlarmRepeatType.WEEKLY) R.string.repeat_weeks
+                        else R.string.repeat_months
+                    ),
+                    onChange = vm::setRepeatInterval,
+                )
+                OutlinedTextField(
+                    value = state.repeatStartDate,
+                    onValueChange = vm::setRepeatStartDate,
+                    label = { Text(stringResource(R.string.repeat_start_date)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                when (state.repeatType) {
+                    AlarmRepeatType.MONTHLY_DAY -> MonthlyDayControls(state = state, vm = vm)
+                    AlarmRepeatType.MONTHLY_WEEKDAY -> MonthlyWeekdayControls(
+                        state = state,
+                        vm = vm,
+                        firstDay = firstDay,
+                    )
+                    else -> Unit
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DaySelector(
+    firstDay: DayOfWeek,
+    selected: (DayOfWeek) -> Boolean,
+    onClick: (DayOfWeek) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        orderedDays(firstDay).forEach { d ->
+            DayChip(
+                letter = letterFor(d),
+                selected = selected(d),
+                fullName = fullDayName(d),
+                onClick = { onClick(d) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun IntervalRow(interval: Int, unit: String, onChange: (Int) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(R.string.repeat_every), modifier = Modifier.weight(1f))
+        IconButton(onClick = rememberTapFeedback { onChange(interval - 1) }) {
+            Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.decrease))
+        }
+        Text(interval.toString(), style = MaterialTheme.typography.titleMedium)
+        IconButton(onClick = rememberTapFeedback { onChange(interval + 1) }) {
+            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.increase))
+        }
+        Text(unit, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun MonthlyDayControls(state: AlarmEditState, vm: AlarmEditViewModel) {
+    OutlinedTextField(
+        value = state.monthlyDay.toString(),
+        onValueChange = { value ->
+            value.filter { it.isDigit() }.toIntOrNull()?.let(vm::setMonthlyDay)
+        },
+        label = { Text(stringResource(R.string.repeat_day_of_month)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MonthlyWeekdayControls(
+    state: AlarmEditState,
+    vm: AlarmEditViewModel,
+    firstDay: DayOfWeek,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                1 to R.string.repeat_first,
+                2 to R.string.repeat_second,
+                3 to R.string.repeat_third,
+                4 to R.string.repeat_fourth,
+                -1 to R.string.repeat_last,
+            ).forEach { (ordinal, label) ->
+                FilterChip(
+                    selected = state.monthlyOrdinal == ordinal,
+                    onClick = rememberTapFeedback { vm.setMonthlyOrdinal(ordinal) },
+                    label = { Text(stringResource(label)) },
+                )
+            }
+        }
+        DaySelector(
+            firstDay = firstDay,
+            selected = { it.value == state.monthlyWeekday },
+            onClick = vm::setMonthlyWeekday,
+        )
+    }
+}
+
 @Composable
 private fun DayChip(letter: String, selected: Boolean, fullName: String, onClick: () -> Unit) {
     val bg = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
@@ -363,6 +536,13 @@ private fun letterFor(d: DayOfWeek): String = when (d) {
     DayOfWeek.SATURDAY -> "S"
     DayOfWeek.SUNDAY -> "S"
 }
+
+private val AlarmEditState.effectiveRepeatType: AlarmRepeatType
+    get() = if (repeatType == AlarmRepeatType.WEEKLY && daysMask == 0) {
+        AlarmRepeatType.ONCE
+    } else {
+        repeatType
+    }
 
 @Composable
 private fun fullDayName(d: DayOfWeek): String = when (d) {

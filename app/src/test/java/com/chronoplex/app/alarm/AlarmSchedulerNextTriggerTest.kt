@@ -2,6 +2,7 @@ package com.chronoplex.app.alarm
 
 import com.google.common.truth.Truth.assertThat
 import com.chronoplex.app.domain.Alarm
+import com.chronoplex.app.domain.AlarmRepeatType
 import com.chronoplex.app.domain.DayMask
 import org.junit.Test
 import java.time.DayOfWeek
@@ -103,6 +104,64 @@ class AlarmSchedulerNextTriggerTest {
 
         assertThat(next).isNotNull()
         assertThat(next!!).isGreaterThan(now)
+    }
+
+    @Test fun `every other sunday uses the configured start week as its anchor`() {
+        val now = nowAtNyc(2026, 8, 10, 9, 0)
+        val alarm = alarm(hour = 8, minute = 0, days = setOf(DayOfWeek.SUNDAY))
+            .copy(repeatInterval = 2, repeatStartDate = "2026-08-03")
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 8, 23, 8, 0, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `monthly day repeat honors a six month interval from the anchor month`() {
+        val now = nowAtNyc(2026, 9, 1, 9, 0)
+        val alarm = alarm(hour = 9, minute = 30, days = DayOfWeek.values().toSet())
+            .copy(
+                repeatType = AlarmRepeatType.MONTHLY_DAY,
+                repeatInterval = 6,
+                repeatStartDate = "2026-08-03",
+                monthlyDay = 3,
+            )
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2027, 2, 3, 9, 30, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `first sunday monthly skips an anchor month whose first sunday is before the start date`() {
+        val now = nowAtNyc(2026, 8, 4, 9, 0)
+        val alarm = alarm(hour = 10, minute = 0, days = DayOfWeek.values().toSet())
+            .copy(
+                repeatType = AlarmRepeatType.MONTHLY_WEEKDAY,
+                repeatStartDate = "2026-08-03",
+                monthlyOrdinal = 1,
+                monthlyWeekday = DayOfWeek.SUNDAY.value,
+            )
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 9, 6, 10, 0, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `monthly day repeat skips months without that date`() {
+        val now = nowAtNyc(2026, 1, 31, 9, 0)
+        val alarm = alarm(hour = 8, minute = 0, days = DayOfWeek.values().toSet())
+            .copy(
+                repeatType = AlarmRepeatType.MONTHLY_DAY,
+                repeatStartDate = "2026-01-01",
+                monthlyDay = 31,
+            )
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 3, 31, 8, 0, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
     }
 
     private fun alarm(
