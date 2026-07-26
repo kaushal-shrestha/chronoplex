@@ -19,7 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TimerGroupEntity::class,
         StopwatchGroupEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -108,13 +108,26 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v5 → v6: adds richer alarm recurrence while preserving existing masks.
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE alarms ADD COLUMN repeatType TEXT NOT NULL DEFAULT 'WEEKLY'")
+                db.execSQL("ALTER TABLE alarms ADD COLUMN repeatInterval INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE alarms ADD COLUMN repeatStartDate TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE alarms ADD COLUMN monthlyDay INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE alarms ADD COLUMN monthlyOrdinal INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE alarms ADD COLUMN monthlyWeekday INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("UPDATE alarms SET repeatType = 'ONCE' WHERE daysMask = 0")
+            }
+        }
+
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 "chronoplex.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build().also { instance = it }
         }
     }

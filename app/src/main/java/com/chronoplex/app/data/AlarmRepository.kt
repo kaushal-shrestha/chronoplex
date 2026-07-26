@@ -79,5 +79,11 @@ class AlarmRepository(private val dao: AlarmDao) {
         hour = Validate.hour(hour),
         minute = Validate.minute(minute),
         daysMask = Validate.daysMask(daysMask),
+        repeatType = Validate.repeatType(repeatType, daysMask),
+        repeatInterval = Validate.repeatInterval(repeatInterval),
+        repeatStartDate = Validate.repeatStartDate(repeatStartDate),
+        monthlyDay = Validate.monthlyDay(monthlyDay),
+        monthlyOrdinal = Validate.monthlyOrdinal(monthlyOrdinal),
+        monthlyWeekday = Validate.monthlyWeekday(monthlyWeekday),
     )
 }

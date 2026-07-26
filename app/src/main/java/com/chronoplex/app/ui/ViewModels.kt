@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.chronoplex.app.AppContainer
 import com.chronoplex.app.data.AlarmZoneSource
 import com.chronoplex.app.domain.Alarm
+import com.chronoplex.app.domain.AlarmRepeatType
 import com.chronoplex.app.domain.AppearanceMode
 import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.DayMask
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
+import java.time.LocalDate
 
 class ClocksViewModel(private val container: AppContainer) : ViewModel() {
     val clocks: StateFlow<List<Clock>> = container.clockRepo.observeAll()
@@ -195,6 +197,12 @@ data class AlarmEditState(
     /** Per-edit override; initialized from settings default. */
     val zoneSource: AlarmZoneSource = AlarmZoneSource.ALL_ZONES,
     val groupId: Long? = null,
+    val repeatType: AlarmRepeatType = AlarmRepeatType.WEEKLY,
+    val repeatInterval: Int = 1,
+    val repeatStartDate: String = LocalDate.now().toString(),
+    val monthlyDay: Int = 1,
+    val monthlyOrdinal: Int = 1,
+    val monthlyWeekday: Int = DayOfWeek.MONDAY.value,
 )
 
 class AlarmEditViewModel(
@@ -230,6 +238,12 @@ class AlarmEditViewModel(
                 enabled = a.enabled,
                 zoneSource = defaultSource,
                 groupId = a.groupId,
+                repeatType = a.effectiveRepeatType,
+                repeatInterval = a.repeatInterval,
+                repeatStartDate = a.repeatStartDate.ifBlank { LocalDate.now().toString() },
+                monthlyDay = a.monthlyDay,
+                monthlyOrdinal = a.monthlyOrdinal,
+                monthlyWeekday = a.monthlyWeekday,
             )
         }
     }
@@ -246,10 +260,33 @@ class AlarmEditViewModel(
     fun setZone(v: String) = state.update { it.copy(zoneId = v) }
     fun setTime(h: Int, m: Int) = state.update { it.copy(hour = h, minute = m) }
     fun toggleDay(d: DayOfWeek) = state.update {
+        if (it.repeatType == AlarmRepeatType.MONTHLY_WEEKDAY) {
+            return@update it.copy(monthlyWeekday = d.value)
+        }
         val bit = 1 shl (d.value - 1)
-        it.copy(daysMask = it.daysMask xor bit)
+        val next = it.daysMask xor bit
+        it.copy(daysMask = next, repeatType = if (next == 0) AlarmRepeatType.ONCE else AlarmRepeatType.WEEKLY)
     }
-    fun setDaysMask(mask: Int) = state.update { it.copy(daysMask = mask) }
+    fun setDaysMask(mask: Int) = state.update {
+        it.copy(
+            daysMask = mask,
+            repeatType = if (mask == 0) AlarmRepeatType.ONCE else AlarmRepeatType.WEEKLY,
+            repeatInterval = 1,
+            repeatStartDate = LocalDate.now().toString(),
+        )
+    }
+    fun setRepeatType(type: AlarmRepeatType) = state.update {
+        it.copy(
+            repeatType = type,
+            daysMask = if (type == AlarmRepeatType.ONCE) 0 else it.daysMask.takeIf { mask -> mask != 0 } ?: DayMask.EVERY_DAY,
+            repeatStartDate = it.repeatStartDate.ifBlank { LocalDate.now().toString() },
+        )
+    }
+    fun setRepeatInterval(interval: Int) = state.update { it.copy(repeatInterval = interval.coerceIn(1, 99)) }
+    fun setRepeatStartDate(value: String) = state.update { it.copy(repeatStartDate = value) }
+    fun setMonthlyDay(day: Int) = state.update { it.copy(monthlyDay = day.coerceIn(1, 31)) }
+    fun setMonthlyOrdinal(ordinal: Int) = state.update { it.copy(monthlyOrdinal = if (ordinal == -1) -1 else ordinal.coerceIn(1, 4)) }
+    fun setMonthlyWeekday(day: DayOfWeek) = state.update { it.copy(monthlyWeekday = day.value) }
     fun setSound(v: Boolean) = state.update { it.copy(soundEnabled = v) }
     fun setVibration(v: Boolean) = state.update { it.copy(vibrationEnabled = v) }
 
@@ -267,6 +304,12 @@ class AlarmEditViewModel(
             vibrationEnabled = s.vibrationEnabled,
             enabled = true,
             groupId = s.groupId,
+            repeatType = s.repeatType,
+            repeatInterval = s.repeatInterval,
+            repeatStartDate = s.repeatStartDate,
+            monthlyDay = s.monthlyDay,
+            monthlyOrdinal = s.monthlyOrdinal,
+            monthlyWeekday = s.monthlyWeekday,
         )
         val newId = container.alarmRepo.upsert(alarm)
         val saved = alarm.copy(id = if (alarm.id == 0L) newId else alarm.id)

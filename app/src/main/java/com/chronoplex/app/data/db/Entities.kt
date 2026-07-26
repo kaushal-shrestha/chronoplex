@@ -3,6 +3,7 @@ package com.chronoplex.app.data.db
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.chronoplex.app.domain.Alarm
+import com.chronoplex.app.domain.AlarmRepeatType
 import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.Group
 import com.chronoplex.app.domain.Stopwatch
@@ -46,6 +47,12 @@ data class AlarmEntity(
     val enabled: Boolean,
     val snoozeUntilMillis: Long? = null,
     val groupId: Long? = null,
+    val repeatType: String = AlarmRepeatType.WEEKLY.name,
+    val repeatInterval: Int = 1,
+    val repeatStartDate: String = "",
+    val monthlyDay: Int = 1,
+    val monthlyOrdinal: Int = 1,
+    val monthlyWeekday: Int = java.time.DayOfWeek.MONDAY.value,
 ) {
     fun toDomain() = Alarm(
         id = id,
@@ -59,6 +66,13 @@ data class AlarmEntity(
         enabled = enabled,
         snoozeUntilMillis = snoozeUntilMillis,
         groupId = groupId,
+        repeatType = runCatching { AlarmRepeatType.valueOf(repeatType) }
+            .getOrElse { if (daysMask == 0) AlarmRepeatType.ONCE else AlarmRepeatType.WEEKLY },
+        repeatInterval = repeatInterval,
+        repeatStartDate = repeatStartDate,
+        monthlyDay = monthlyDay,
+        monthlyOrdinal = monthlyOrdinal,
+        monthlyWeekday = monthlyWeekday,
     )
 
     companion object {
@@ -74,6 +88,12 @@ data class AlarmEntity(
             enabled = a.enabled,
             snoozeUntilMillis = a.snoozeUntilMillis,
             groupId = a.groupId,
+            repeatType = a.effectiveRepeatType.name,
+            repeatInterval = a.repeatInterval,
+            repeatStartDate = a.repeatStartDate,
+            monthlyDay = a.monthlyDay,
+            monthlyOrdinal = a.monthlyOrdinal,
+            monthlyWeekday = a.monthlyWeekday,
         )
     }
 }
