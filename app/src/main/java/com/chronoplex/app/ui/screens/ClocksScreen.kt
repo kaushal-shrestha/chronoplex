@@ -397,6 +397,7 @@ private fun ClocksList(
                     nowEpochMillis = now.toInstant().toEpochMilli(),
                     sourceClockId = converterSourceClockId,
                     pinnedEpochMillis = converterPinnedEpochMillis,
+                    onSourceClockSelected = onConverterSourceClock,
                     onPinnedEpochMillisChange = onConverterPinnedEpochMillis,
                     onClose = onCloseConverter,
                 )
@@ -488,6 +489,7 @@ private fun TimeConverterCard(
     nowEpochMillis: Long,
     sourceClockId: Long?,
     pinnedEpochMillis: Long?,
+    onSourceClockSelected: (Long?) -> Unit,
     onPinnedEpochMillisChange: (Long?) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -613,6 +615,7 @@ private fun TimeConverterCard(
                             time = timeFmt.format(converted),
                             dayLabel = relativeDayLabel(sourceTime.toLocalDate(), converted.toLocalDate()),
                             isSource = clock.id == sourceClockId,
+                            onClick = { onSourceClockSelected(clock.id) },
                         )
                     }
                 }
@@ -658,9 +661,13 @@ private fun ConverterResultRow(
     time: String,
     dayLabel: String,
     isSource: Boolean,
+    onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .tappable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         color = if (isSource) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f)
