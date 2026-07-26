@@ -21,6 +21,7 @@ class SettingsRepository(private val context: Context) {
     private val KEY_APPEARANCE = stringPreferencesKey("appearance_mode")
     private val KEY_PALETTE = stringPreferencesKey("theme_palette")
     private val KEY_ALARM_ZONE_SOURCE = stringPreferencesKey("alarm_zone_source")
+    private val KEY_ALARM_ZONE_DISPLAY = stringPreferencesKey("alarm_zone_display")
     private val KEY_FIRST_DAY_OF_WEEK = stringPreferencesKey("first_day_of_week")
     private val KEY_TIMER_FINISH_MODE = stringPreferencesKey("timer_finish_mode")
     private val KEY_CLOCKS_GROUPING = booleanPreferencesKey("clocks_grouping_enabled")
@@ -31,6 +32,7 @@ class SettingsRepository(private val context: Context) {
     val appearance: Flow<AppearanceMode> = store.data.map { it.readAppearance() }
     val palette: Flow<ThemePalette> = store.data.map { it.readPalette() }
     val alarmZoneSource: Flow<AlarmZoneSource> = store.data.map { it.readZoneSource() }
+    val alarmZoneDisplay: Flow<AlarmZoneDisplayMode> = store.data.map { it.readAlarmZoneDisplay() }
     val firstDayOfWeek: Flow<DayOfWeek> = store.data.map { it.readFirstDayOfWeek() }
     val timerFinishMode: Flow<TimerFinishMode> = store.data.map { it.readTimerFinishMode() }
     val clocksGroupingEnabled: Flow<Boolean> = store.data.map { it[KEY_CLOCKS_GROUPING] ?: false }
@@ -48,6 +50,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAlarmZoneSource(source: AlarmZoneSource) {
         store.edit { it[KEY_ALARM_ZONE_SOURCE] = source.name }
+    }
+
+    suspend fun setAlarmZoneDisplay(mode: AlarmZoneDisplayMode) {
+        store.edit { it[KEY_ALARM_ZONE_DISPLAY] = mode.name }
     }
 
     suspend fun setFirstDayOfWeek(day: DayOfWeek) {
@@ -83,6 +89,11 @@ class SettingsRepository(private val context: Context) {
     private fun Preferences.readZoneSource(): AlarmZoneSource =
         this[KEY_ALARM_ZONE_SOURCE]?.let { runCatching { AlarmZoneSource.valueOf(it) }.getOrNull() } ?: AlarmZoneSource.ALL_ZONES
 
+    private fun Preferences.readAlarmZoneDisplay(): AlarmZoneDisplayMode =
+        this[KEY_ALARM_ZONE_DISPLAY]?.let {
+            runCatching { AlarmZoneDisplayMode.valueOf(it) }.getOrNull()
+        } ?: AlarmZoneDisplayMode.CLOCK_LABEL
+
     private fun Preferences.readFirstDayOfWeek(): DayOfWeek =
         this[KEY_FIRST_DAY_OF_WEEK]?.let { runCatching { DayOfWeek.valueOf(it) }.getOrNull() } ?: DayOfWeek.MONDAY
 
@@ -91,3 +102,4 @@ class SettingsRepository(private val context: Context) {
 }
 
 enum class AlarmZoneSource { ADDED_CLOCKS, ALL_ZONES }
+enum class AlarmZoneDisplayMode { CLOCK_LABEL, ZONE_ID }

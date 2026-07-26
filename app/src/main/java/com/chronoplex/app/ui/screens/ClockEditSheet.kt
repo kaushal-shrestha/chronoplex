@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PublicOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,8 +52,10 @@ fun ClockEditSheet(
 ) {
     val s by vm.state.collectAsState()
     val groups by vm.groups.collectAsState()
+    val attachedAlarms by vm.attachedAlarms.collectAsState()
     val groupingEnabled by vm.groupingEnabled.collectAsState()
     var groupPickerOpen by remember { mutableStateOf(false) }
+    var confirmZoneChange by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -103,7 +106,18 @@ fun ClockEditSheet(
                     }
                 }
                 TextButton(
-                    onClick = rememberTapFeedback { vm.save { dismissAnimated() } },
+                    onClick = rememberTapFeedback {
+                        if (
+                            s.id != 0L &&
+                            s.originalZoneId.isNotBlank() &&
+                            s.zoneId != s.originalZoneId &&
+                            attachedAlarms.isNotEmpty()
+                        ) {
+                            confirmZoneChange = true
+                        } else {
+                            vm.save { dismissAnimated() }
+                        }
+                    },
                     enabled = s.zoneId.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.save))
@@ -177,6 +191,35 @@ fun ClockEditSheet(
             onSelect = { vm.setGroupId(it); groupPickerOpen = false },
             onCreateAndSelect = { name -> vm.createAndSelectGroup(name); groupPickerOpen = false },
             onDismiss = { groupPickerOpen = false },
+        )
+    }
+
+    if (confirmZoneChange) {
+        AlertDialog(
+            onDismissRequest = { confirmZoneChange = false },
+            title = { Text(stringResource(R.string.clock_zone_change_detaches_title, s.label.ifBlank { s.originalZoneId })) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.clock_zone_change_detaches_message,
+                        attachedAlarms.size,
+                        s.originalZoneId,
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = rememberTapFeedback {
+                    confirmZoneChange = false
+                    vm.save(detachAttachedAlarms = true) { dismissAnimated() }
+                }) {
+                    Text(stringResource(R.string.change_time_zone))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = rememberTapFeedback { confirmZoneChange = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
         )
     }
 }

@@ -47,6 +47,7 @@ data class AlarmEntity(
     val enabled: Boolean,
     val snoozeUntilMillis: Long? = null,
     val groupId: Long? = null,
+    val clockId: Long? = null,
     val repeatType: String = AlarmRepeatType.WEEKLY.name,
     val repeatInterval: Int = 1,
     val repeatStartDate: String = "",
@@ -66,6 +67,7 @@ data class AlarmEntity(
         enabled = enabled,
         snoozeUntilMillis = snoozeUntilMillis,
         groupId = groupId,
+        clockId = clockId,
         repeatType = runCatching { AlarmRepeatType.valueOf(repeatType) }
             .getOrElse { if (daysMask == 0) AlarmRepeatType.ONCE else AlarmRepeatType.WEEKLY },
         repeatInterval = repeatInterval,
@@ -88,6 +90,7 @@ data class AlarmEntity(
             enabled = a.enabled,
             snoozeUntilMillis = a.snoozeUntilMillis,
             groupId = a.groupId,
+            clockId = a.clockId,
             repeatType = a.effectiveRepeatType.name,
             repeatInterval = a.repeatInterval,
             repeatStartDate = a.repeatStartDate,

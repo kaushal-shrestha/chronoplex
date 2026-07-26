@@ -54,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +68,7 @@ import com.chronoplex.app.ChronoplexApp
 import com.chronoplex.app.R
 import com.chronoplex.app.data.AlarmZoneSource
 import com.chronoplex.app.domain.AlarmRepeatType
+import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.ui.AlarmEditState
 import com.chronoplex.app.ui.AlarmEditViewModel
@@ -84,9 +86,11 @@ fun AlarmEditSheet(
     onDismiss: () -> Unit,
 ) {
     val s by vm.state.collectAsState()
+    val clocks by vm.clocks.collectAsState()
     val groups by vm.groups.collectAsState()
     val groupingEnabled by vm.groupingEnabled.collectAsState()
     var groupPickerOpen by remember { mutableStateOf(false) }
+    var attachedLabelPickerOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
     val firstDay by (context.applicationContext as ChronoplexApp).container.settings.firstDayOfWeek
@@ -173,11 +177,33 @@ fun AlarmEditSheet(
                     TimePicker(state = timeState)
                 }
 
-                Column {
+                OutlinedTextField(
+                    value = s.label,
+                    onValueChange = vm::setLabel,
+                    label = { Text(stringResource(R.string.label)) },
+                    placeholder = { Text(stringResource(R.string.optional)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                val attachedClock = clocks.firstOrNull { it.id == s.clockId }
+                val manualZoneSelectionEnabled = attachedClock == null
+                OutlinedCard(modifier = Modifier.fillMaxWidth().tappable { attachedLabelPickerOpen = true }) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                        Text(stringResource(R.string.attached_label), style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            attachedClock?.label ?: stringResource(R.string.none),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.alpha(if (manualZoneSelectionEnabled) 1f else 0.42f)) {
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         val sources = listOf(AlarmZoneSource.ADDED_CLOCKS, AlarmZoneSource.ALL_ZONES)
                         sources.forEachIndexed { i, src ->
                             SegmentedButton(
+                                enabled = manualZoneSelectionEnabled,
                                 selected = s.zoneSource == src,
                                 onClick = rememberTapFeedback { vm.setZoneSource(src) },
                                 shape = SegmentedButtonDefaults.itemShape(i, sources.size),
@@ -191,9 +217,13 @@ fun AlarmEditSheet(
                     }
                     Spacer(Modifier.height(8.dp))
                     OutlinedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .tappable { onPickZone(s.zoneSource == AlarmZoneSource.ADDED_CLOCKS) }
+                        modifier = if (manualZoneSelectionEnabled) {
+                            Modifier
+                                .fillMaxWidth()
+                                .tappable { onPickZone(s.zoneSource == AlarmZoneSource.ADDED_CLOCKS) }
+                        } else {
+                            Modifier.fillMaxWidth()
+                        }
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -214,15 +244,6 @@ fun AlarmEditSheet(
                         }
                     }
                 }
-
-                OutlinedTextField(
-                    value = s.label,
-                    onValueChange = vm::setLabel,
-                    label = { Text(stringResource(R.string.label)) },
-                    placeholder = { Text(stringResource(R.string.optional)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
 
                 RepeatSection(
                     state = s,
@@ -281,6 +302,77 @@ fun AlarmEditSheet(
             onCreateAndSelect = { name -> vm.createAndSelectGroup(name); groupPickerOpen = false },
             onDismiss = { groupPickerOpen = false },
         )
+    }
+
+    if (attachedLabelPickerOpen) {
+        AttachedLabelPickerDialog(
+            clocks = clocks,
+            selectedClockId = s.clockId,
+            onSelect = {
+                vm.setAttachedClock(it)
+                attachedLabelPickerOpen = false
+            },
+            onDismiss = { attachedLabelPickerOpen = false },
+        )
+    }
+}
+
+@Composable
+private fun AttachedLabelPickerDialog(
+    clocks: List<Clock>,
+    selectedClockId: Long?,
+    onSelect: (Clock?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.attached_label)) },
+        text = {
+            Column {
+                AttachedLabelOption(
+                    label = stringResource(R.string.none),
+                    sublabel = stringResource(R.string.attached_label_none_hint),
+                    selected = selectedClockId == null,
+                    onClick = { onSelect(null) },
+                )
+                clocks.forEach { clock ->
+                    AttachedLabelOption(
+                        label = clock.label,
+                        sublabel = clock.zoneId,
+                        selected = selectedClockId == clock.id,
+                        onClick = { onSelect(clock) },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = rememberTapFeedback(onDismiss)) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun AttachedLabelOption(
+    label: String,
+    sublabel: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().tappable(onClick = onClick).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.material3.RadioButton(selected = selected, onClick = rememberTapFeedback(onClick))
+        Column(modifier = Modifier.padding(start = 8.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                sublabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

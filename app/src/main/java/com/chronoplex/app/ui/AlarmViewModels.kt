@@ -3,9 +3,11 @@ package com.chronoplex.app.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chronoplex.app.AppContainer
+import com.chronoplex.app.data.AlarmZoneDisplayMode
 import com.chronoplex.app.data.AlarmZoneSource
 import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.domain.AlarmRepeatType
+import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.domain.Group
 import java.time.DayOfWeek
@@ -21,6 +23,12 @@ import kotlinx.coroutines.launch
 class AlarmsViewModel(private val container: AppContainer) : ViewModel() {
     val alarms: StateFlow<List<Alarm>> = container.alarmRepo.observeAll()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val clocks: StateFlow<List<Clock>> = container.clockRepo.observeAll()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val alarmZoneDisplay: StateFlow<AlarmZoneDisplayMode> = container.settings.alarmZoneDisplay
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AlarmZoneDisplayMode.CLOCK_LABEL)
 
     val groups: StateFlow<List<Group>> = container.alarmRepo.observeGroups()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -90,6 +98,7 @@ data class AlarmEditState(
     /** Per-edit override; initialized from settings default. */
     val zoneSource: AlarmZoneSource = AlarmZoneSource.ALL_ZONES,
     val groupId: Long? = null,
+    val clockId: Long? = null,
     val repeatType: AlarmRepeatType = AlarmRepeatType.WEEKLY,
     val repeatInterval: Int = 1,
     val repeatStartDate: String = LocalDate.now().toString(),
@@ -102,6 +111,9 @@ class AlarmEditViewModel(
     private val container: AppContainer,
 ) : ViewModel() {
     val state = MutableStateFlow(AlarmEditState())
+
+    val clocks: StateFlow<List<Clock>> = container.clockRepo.observeAll()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val groups: StateFlow<List<Group>> = container.alarmRepo.observeGroups()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -131,6 +143,7 @@ class AlarmEditViewModel(
                 enabled = a.enabled,
                 zoneSource = defaultSource,
                 groupId = a.groupId,
+                clockId = a.clockId,
                 repeatType = a.effectiveRepeatType,
                 repeatInterval = a.repeatInterval,
                 repeatStartDate = a.repeatStartDate.ifBlank { LocalDate.now().toString() },
@@ -150,7 +163,10 @@ class AlarmEditViewModel(
     }
 
     fun setLabel(v: String) = state.update { it.copy(label = v) }
-    fun setZone(v: String) = state.update { it.copy(zoneId = v) }
+    fun setZone(v: String) = state.update { it.copy(zoneId = v, clockId = null) }
+    fun setAttachedClock(clock: Clock?) = state.update {
+        if (clock == null) it.copy(clockId = null) else it.copy(clockId = clock.id, zoneId = clock.zoneId)
+    }
     fun setTime(h: Int, m: Int) = state.update { it.copy(hour = h, minute = m) }
     fun toggleDay(d: DayOfWeek) = state.update {
         if (it.repeatType == AlarmRepeatType.MONTHLY_WEEKDAY) {
@@ -201,6 +217,7 @@ class AlarmEditViewModel(
             vibrationEnabled = s.vibrationEnabled,
             enabled = true,
             groupId = s.groupId,
+            clockId = s.clockId,
             repeatType = s.repeatType,
             repeatInterval = s.repeatInterval,
             repeatStartDate = s.repeatStartDate,

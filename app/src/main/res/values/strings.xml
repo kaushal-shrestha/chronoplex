@@ -11,7 +11,10 @@
     <string name="edit_alarm">Edit alarm</string>
 
     <string name="label">Label</string>
+    <string name="attached_label">Associated Clock Label</string>
+    <string name="attached_label_none_hint">No associated clock; show the saved time zone in Alarms</string>
     <string name="optional">Optional</string>
+    <string name="none">None</string>
     <string name="time_zone">Time zone</string>
     <string name="select_time_zone">Select time zone</string>
     <string name="search_zones">Search zones</string>
@@ -23,6 +26,9 @@
     <string name="zone_source_added">My clocks</string>
     <string name="zone_source_all">All zones</string>
     <string name="zone_source_settings">Default zone source for new alarms</string>
+    <string name="alarm_zone_display">Alarm zone display</string>
+    <string name="alarm_zone_display_label">Clock label</string>
+    <string name="alarm_zone_display_zone">Zone ID</string>
     <string name="first_day_of_week">First day of week</string>
     <string name="day_monday">Monday</string>
     <string name="day_sunday">Sunday</string>
@@ -30,6 +36,8 @@
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>
+    <string name="delete_clock">Delete clock</string>
+    <string name="change_time_zone">Change time zone</string>
     <string name="dismiss">Dismiss</string>
     <string name="snooze">Snooze</string>
     <string name="snooze_for">Snooze for</string>
@@ -42,6 +50,10 @@
     <string name="more_options">More options</string>
     <string name="clear_all_clocks">Clear all clocks</string>
     <string name="clear_all_clocks_message">Remove every clock from the list. Alarms anchored to those zones aren\'t affected. This can\'t be undone.</string>
+    <string name="clock_delete_detaches_title">Delete "%1$s"?</string>
+    <string name="clock_delete_detaches_message">This clock is used by %1$d alarm(s). Deleting it will detach those alarms. They will keep ringing in %2$s and show their saved time zone instead.</string>
+    <string name="clock_zone_change_detaches_title">Change "%1$s"?</string>
+    <string name="clock_zone_change_detaches_message">This clock is used by %1$d alarm(s). Changing its time zone will detach those alarms. They will keep ringing in %2$s and show their saved time zone instead.</string>
     <string name="clear_all_alarms">Clear all alarms</string>
     <string name="clear_all_alarms_message">Cancel and remove every alarm. This can\'t be undone.</string>
     <string name="clear_all_timers">Clear all timers</string>
