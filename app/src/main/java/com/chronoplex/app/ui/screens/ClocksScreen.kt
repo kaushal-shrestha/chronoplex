@@ -61,6 +61,7 @@ fun ClocksScreen(
     container: AppContainer,
 ) {
     val clocks by vm.clocks.collectAsState()
+    val alarms by vm.alarms.collectAsState()
     val groups by vm.groups.collectAsState()
     val groupingEnabled by vm.groupingEnabled.collectAsState()
     var menuOpen by remember { mutableStateOf(false) }
@@ -70,6 +71,7 @@ fun ClocksScreen(
     var reorderMode by remember { mutableStateOf(false) }
     var actionsTarget by remember { mutableStateOf<Clock?>(null) }
     var moveTarget by remember { mutableStateOf<Clock?>(null) }
+    var deleteTarget by remember { mutableStateOf<Clock?>(null) }
     var editSheetOpen by remember { mutableStateOf(false) }
     var zonePickerOpen by remember { mutableStateOf(false) }
     var converterOpen by rememberSaveable { mutableStateOf(false) }
@@ -90,7 +92,8 @@ fun ClocksScreen(
     val scope = rememberCoroutineScope()
     val deletedLabel = stringResource(R.string.clock_deleted)
     val undoLabel = stringResource(R.string.undo)
-    fun handleDelete(clock: Clock) {
+    fun attachedAlarmCount(clock: Clock): Int = alarms.count { it.clockId == clock.id }
+    fun deleteWithUndo(clock: Clock) {
         vm.delete(clock.id)
         scope.launch {
             val result = snackbarHostState.showSnackbar(
@@ -100,6 +103,9 @@ fun ClocksScreen(
             )
             if (result == SnackbarResult.ActionPerformed) vm.restore(clock)
         }
+    }
+    fun handleDelete(clock: Clock) {
+        if (attachedAlarmCount(clock) > 0) deleteTarget = clock else deleteWithUndo(clock)
     }
 
     Scaffold(
@@ -293,6 +299,36 @@ fun ClocksScreen(
             },
             dismissButton = {
                 TextButton(onClick = rememberTapFeedback { confirmReset = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    deleteTarget?.let { clock ->
+        val count = attachedAlarmCount(clock)
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text(stringResource(R.string.clock_delete_detaches_title, clock.label)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.clock_delete_detaches_message,
+                        count,
+                        clock.zoneId,
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = rememberTapFeedback {
+                    deleteTarget = null
+                    vm.delete(clock.id)
+                }) {
+                    Text(stringResource(R.string.delete_clock))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = rememberTapFeedback { deleteTarget = null }) {
                     Text(stringResource(R.string.cancel))
                 }
             },

@@ -51,6 +51,7 @@ import com.chronoplex.app.ui.tappable
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.chronoplex.app.R
+import com.chronoplex.app.data.AlarmZoneDisplayMode
 import com.chronoplex.app.data.AlarmZoneSource
 import com.chronoplex.app.domain.AppearanceMode
 import com.chronoplex.app.domain.ThemePalette
@@ -150,6 +151,24 @@ fun SettingsScreen(vm: SettingsViewModel) {
                         selected = state.alarmZoneSource == AlarmZoneSource.ALL_ZONES,
                         onClick = { vm.setZoneSource(AlarmZoneSource.ALL_ZONES) },
                     )
+                }
+            }
+            item {
+                SectionLabel(R.string.alarm_zone_display)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val options = listOf(AlarmZoneDisplayMode.CLOCK_LABEL, AlarmZoneDisplayMode.ZONE_ID)
+                    options.forEachIndexed { i, mode ->
+                        SegmentedButton(
+                            selected = state.alarmZoneDisplay == mode,
+                            onClick = rememberTapFeedback { vm.setAlarmZoneDisplay(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                        ) {
+                            Text(when (mode) {
+                                AlarmZoneDisplayMode.CLOCK_LABEL -> stringResource(R.string.alarm_zone_display_label)
+                                AlarmZoneDisplayMode.ZONE_ID -> stringResource(R.string.alarm_zone_display_zone)
+                            })
+                        }
+                    }
                 }
             }
             item {

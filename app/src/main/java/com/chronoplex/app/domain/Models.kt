@@ -33,6 +33,7 @@ data class Alarm(
     /** When this alarm is currently snoozed, the epoch millis at which it will next ring. */
     val snoozeUntilMillis: Long? = null,
     val groupId: Long? = null,
+    val clockId: Long? = null,
     val repeatType: AlarmRepeatType = AlarmRepeatType.WEEKLY,
     val repeatInterval: Int = 1,
     /** Local ISO date (yyyy-MM-dd) used as the interval anchor for advanced repeats. */

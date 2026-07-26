@@ -17,6 +17,9 @@ class AlarmRepository(private val dao: AlarmDao) {
 
     suspend fun getById(id: Long): Alarm? = dao.getById(id)?.toDomain()?.clean()
 
+    suspend fun getByClockId(clockId: Long): List<Alarm> =
+        dao.getByClockId(clockId).map { it.toDomain().clean() }
+
     suspend fun upsert(alarm: Alarm): Long {
         val cleaned = alarm.clean()
         return if (cleaned.id == 0L) {
@@ -61,6 +64,10 @@ class AlarmRepository(private val dao: AlarmDao) {
     }
 
     suspend fun assignToGroup(id: Long, groupId: Long?) = dao.assignToGroup(id, groupId)
+
+    suspend fun detachClock(clockId: Long) = dao.detachClock(clockId)
+
+    suspend fun detachAllClocks() = dao.detachAllClocks()
 
     /** Alarms use (hour, minute, id) for natural sort; only groups can be reordered. */
     suspend fun reorderGroups(orderedIds: List<Long>) {

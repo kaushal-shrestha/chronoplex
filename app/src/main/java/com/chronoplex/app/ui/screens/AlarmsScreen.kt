@@ -41,8 +41,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -54,20 +56,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chronoplex.app.R
 import com.chronoplex.app.alarm.AlarmScheduler
 import com.chronoplex.app.AppContainer
+import com.chronoplex.app.data.AlarmZoneDisplayMode
 import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.domain.AlarmRepeatType
+import com.chronoplex.app.domain.Clock
 import com.chronoplex.app.domain.DayMask
 import com.chronoplex.app.domain.Group
 import com.chronoplex.app.ui.AlarmEditViewModel
 import com.chronoplex.app.ui.AlarmsViewModel
 import com.chronoplex.app.ui.rememberTapFeedback
 import com.chronoplex.app.ui.rememberToggleFeedback
-import kotlinx.coroutines.launch
 import com.chronoplex.app.ui.needsExactAlarmGrant
 import com.chronoplex.app.ui.needsNotificationGrant
 import com.chronoplex.app.ui.openAppNotificationSettings
@@ -78,6 +82,8 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,8 +94,13 @@ fun AlarmsScreen(
     onOpenExactAlarmSettings: () -> Unit,
 ) {
     val alarms by vm.alarms.collectAsState()
+    val clocks by vm.clocks.collectAsState()
+    val alarmZoneDisplay by vm.alarmZoneDisplay.collectAsState()
     val groups by vm.groups.collectAsState()
     val groupingEnabled by vm.groupingEnabled.collectAsState()
+    val clocksById = remember(clocks) { clocks.associateBy { it.id } }
+    var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val sortedAlarms = remember(alarms, nowMillis) { alarms.sortedWith(alarmRingOrderComparator(nowMillis)) }
     val context = androidx.compose.ui.platform.LocalContext.current
     var showPermissionDialog by remember { mutableStateOf(false) }
     var exactOk by remember { mutableStateOf(!needsExactAlarmGrant(context)) }
@@ -124,6 +135,13 @@ fun AlarmsScreen(
                 duration = SnackbarDuration.Long,
             )
             if (r == SnackbarResult.ActionPerformed) vm.restore(alarm)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            nowMillis = System.currentTimeMillis()
+            delay(30_000)
         }
     }
 
@@ -183,17 +201,18 @@ fun AlarmsScreen(
                 if (alarms.isEmpty()) {
                     item { EmptyState(R.string.empty_alarms_title, R.string.empty_alarms_body) }
                 } else if (!groupingEnabled) {
-                    items(alarms, key = { it.id }) { alarm ->
+                    items(sortedAlarms, key = { it.id }) { alarm ->
                         AlarmRow(
                             alarm = alarm,
+                            zoneLabel = alarmZoneLabel(alarm, clocksById, alarmZoneDisplay),
+                            nowMillis = nowMillis,
                             onClick = { openEdit(alarm) },
                             onLongClick = { actionsTarget = alarm },
                             onToggle = { vm.toggleEnabled(alarm) },
-                            onDelete = { handleDelete(alarm) },
                         )
                     }
                 } else {
-                    val byGroup = alarms.groupBy { it.groupId }
+                    val byGroup = sortedAlarms.groupBy { it.groupId }
                     groups.forEach { g ->
                         val members = byGroup[g.id].orEmpty()
                         item(key = "group-${g.id}") {
@@ -203,10 +222,11 @@ fun AlarmsScreen(
                             items(members, key = { "g${g.id}-${it.id}" }) { alarm ->
                                 AlarmRow(
                                     alarm = alarm,
+                                    zoneLabel = alarmZoneLabel(alarm, clocksById, alarmZoneDisplay),
+                                    nowMillis = nowMillis,
                                     onClick = { openEdit(alarm) },
                                     onLongClick = { actionsTarget = alarm },
                                     onToggle = { vm.toggleEnabled(alarm) },
-                                    onDelete = { handleDelete(alarm) },
                                 )
                             }
                         }
@@ -224,10 +244,11 @@ fun AlarmsScreen(
                             items(ungrouped, key = { "u-${it.id}" }) { alarm ->
                                 AlarmRow(
                                     alarm = alarm,
+                                    zoneLabel = alarmZoneLabel(alarm, clocksById, alarmZoneDisplay),
+                                    nowMillis = nowMillis,
                                     onClick = { openEdit(alarm) },
                                     onLongClick = { actionsTarget = alarm },
                                     onToggle = { vm.toggleEnabled(alarm) },
-                                    onDelete = { handleDelete(alarm) },
                                 )
                             }
                         }
@@ -411,10 +432,11 @@ private fun PermissionLine(
 @Composable
 private fun AlarmRow(
     alarm: Alarm,
+    zoneLabel: String,
+    nowMillis: Long,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onToggle: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     val timeFmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
     val timeText = remember(alarm.hour, alarm.minute) {
@@ -445,7 +467,7 @@ private fun AlarmRow(
                         )
                     }
                     Text(
-                        alarm.zoneId,
+                        zoneLabel,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -453,28 +475,15 @@ private fun AlarmRow(
                 Switch(checked = alarm.enabled, onCheckedChange = rememberToggleFeedback { onToggle() })
             }
             Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    repeatLabel(alarm),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                if (alarm.enabled) {
-                    val snoozed = alarm.isSnoozed()
-                    Text(
-                        if (snoozed) snoozedText(alarm) else nextFireText(alarm),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (snoozed) MaterialTheme.colorScheme.tertiary
-                                else MaterialTheme.colorScheme.primary,
-                    )
-                }
-                IconButton(onClick = rememberTapFeedback(onDelete)) {
-                    Icon(
-                        Icons.Default.DeleteOutline,
-                        contentDescription = stringResource(R.string.delete),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            Text(
+                repeatLabel(alarm),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (alarm.enabled) {
+                nextFireInfo(alarm, nowMillis)?.let { info ->
+                    Spacer(Modifier.height(8.dp))
+                    FireInfoRow(info = info, highlighted = alarm.isSnoozed(nowMillis))
                 }
             }
         }
@@ -482,19 +491,67 @@ private fun AlarmRow(
 }
 
 @Composable
+private fun FireInfoRow(info: FireInfo, highlighted: Boolean) {
+    val valueColor = if (highlighted) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FireInfoText(label = "Clock", value = info.referenceTime, valueColor = valueColor, modifier = Modifier.weight(1.25f))
+        FireInfoText(label = "Device", value = info.deviceTime, valueColor = valueColor, modifier = Modifier.weight(1.25f))
+        FireInfoText(label = "In", value = info.remaining, valueColor = valueColor, modifier = Modifier.weight(0.7f))
+    }
+}
+
+@Composable
+private fun FireInfoText(
+    label: String,
+    value: String,
+    valueColor: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "$label ",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            color = valueColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private fun alarmZoneLabel(
+    alarm: Alarm,
+    clocksById: Map<Long, Clock>,
+    displayMode: AlarmZoneDisplayMode,
+): String {
+    if (displayMode == AlarmZoneDisplayMode.ZONE_ID) return alarm.zoneId
+    val clock = alarm.clockId?.let(clocksById::get)
+    return clock?.label?.takeIf { it.isNotBlank() } ?: alarm.zoneId
+}
+
+@Composable
 private fun repeatLabel(alarm: Alarm): String {
     return when (alarm.effectiveRepeatType) {
-        AlarmRepeatType.ONCE -> stringResource(R.string.repeat_once)
+        AlarmRepeatType.ONCE -> "Rings once"
         AlarmRepeatType.WEEKLY -> weeklyRepeatLabel(alarm)
         AlarmRepeatType.MONTHLY_DAY -> {
             val base = "day ${alarm.monthlyDay}"
-            if (alarm.repeatInterval == 1) "Monthly on $base" else "Every ${alarm.repeatInterval} months on $base"
+            if (alarm.repeatInterval == 1) "Repeats monthly on $base" else "Repeats every ${alarm.repeatInterval} months on $base"
         }
         AlarmRepeatType.MONTHLY_WEEKDAY -> {
-            val weekday = shortDayName(DayOfWeek.of(alarm.monthlyWeekday.coerceIn(1, 7)))
+            val weekday = fullDayName(DayOfWeek.of(alarm.monthlyWeekday.coerceIn(1, 7)))
             val ordinal = ordinalLabel(alarm.monthlyOrdinal)
             val base = "$ordinal $weekday"
-            if (alarm.repeatInterval == 1) "Monthly on the $base" else "Every ${alarm.repeatInterval} months on the $base"
+            if (alarm.repeatInterval == 1) "Repeats monthly on the $base" else "Repeats every ${alarm.repeatInterval} months on the $base"
         }
     }
 }
@@ -502,25 +559,38 @@ private fun repeatLabel(alarm: Alarm): String {
 @Composable
 private fun weeklyRepeatLabel(alarm: Alarm): String {
     val mask = alarm.daysMask
-    val base = when (mask) {
-        DayMask.EVERY_DAY -> stringResource(R.string.repeat_every_day)
-        DayMask.WEEKDAYS -> stringResource(R.string.repeat_weekdays)
-        DayMask.WEEKENDS -> stringResource(R.string.repeat_weekends)
-        else -> alarm.daysOfWeek.sortedBy { it.value }.map { shortDayName(it) }.joinToString(", ")
+    if (alarm.repeatInterval == 1) {
+        return when (mask) {
+            DayMask.EVERY_DAY -> "Repeats every day"
+            DayMask.WEEKDAYS -> "Repeats weekdays"
+            DayMask.WEEKENDS -> "Repeats weekends"
+            else -> {
+                val days = alarm.daysOfWeek.sortedBy { it.value }.map { fullDayName(it) }.joinToString(", ")
+                if (mask.countSelectedDays() == 1) "Repeats every $days" else "Repeats on $days"
+            }
+        }
     }
-    return if (alarm.repeatInterval == 1) base else "Every ${alarm.repeatInterval} weeks: $base"
+    val base = when (mask) {
+        DayMask.EVERY_DAY -> "every day"
+        DayMask.WEEKDAYS -> "weekdays"
+        DayMask.WEEKENDS -> "weekends"
+        else -> alarm.daysOfWeek.sortedBy { it.value }.map { fullDayName(it) }.joinToString(", ")
+    }
+    return "Repeats every ${alarm.repeatInterval} weeks on $base"
 }
 
 @Composable
-private fun shortDayName(d: java.time.DayOfWeek): String = when (d) {
-    java.time.DayOfWeek.MONDAY -> stringResource(R.string.day_mon)
-    java.time.DayOfWeek.TUESDAY -> stringResource(R.string.day_tue)
-    java.time.DayOfWeek.WEDNESDAY -> stringResource(R.string.day_wed)
-    java.time.DayOfWeek.THURSDAY -> stringResource(R.string.day_thu)
-    java.time.DayOfWeek.FRIDAY -> stringResource(R.string.day_fri)
-    java.time.DayOfWeek.SATURDAY -> stringResource(R.string.day_sat)
-    java.time.DayOfWeek.SUNDAY -> stringResource(R.string.day_sun)
+private fun fullDayName(d: DayOfWeek): String = when (d) {
+    DayOfWeek.MONDAY -> stringResource(R.string.day_monday)
+    DayOfWeek.TUESDAY -> "Tuesday"
+    DayOfWeek.WEDNESDAY -> "Wednesday"
+    DayOfWeek.THURSDAY -> "Thursday"
+    DayOfWeek.FRIDAY -> "Friday"
+    DayOfWeek.SATURDAY -> "Saturday"
+    DayOfWeek.SUNDAY -> stringResource(R.string.day_sunday)
 }
+
+private fun Int.countSelectedDays(): Int = Integer.bitCount(this and DayMask.ALL_BITS)
 
 @Composable
 private fun ordinalLabel(ordinal: Int): String = when (ordinal) {
@@ -531,23 +601,43 @@ private fun ordinalLabel(ordinal: Int): String = when (ordinal) {
     else -> stringResource(R.string.repeat_last).lowercase()
 }
 
-@Composable
-private fun snoozedText(alarm: Alarm): String {
-    val zone = runCatching { ZoneId.of(alarm.zoneId) }.getOrElse { ZoneId.systemDefault() }
-    val until = alarm.snoozeUntilMillis ?: return ""
-    val ts = ZonedDateTime.ofInstant(Instant.ofEpochMilli(until), zone)
-    val fmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
-    return stringResource(R.string.snoozed_until, fmt.format(ts))
+private fun alarmRingOrderComparator(nowMillis: Long): Comparator<Alarm> =
+    compareBy<Alarm>(
+        { if (it.enabled) 0 else 1 },
+        { alarmSortMillis(it, nowMillis) },
+        { it.hour },
+        { it.minute },
+        { it.id },
+    )
+
+private fun alarmSortMillis(alarm: Alarm, nowMillis: Long): Long {
+    if (!alarm.enabled) return Long.MAX_VALUE
+    return alarm.snoozeUntilMillis?.takeIf { it > nowMillis }
+        ?: AlarmScheduler.nextTriggerMillis(alarm, nowMillis)
+        ?: Long.MAX_VALUE
 }
 
-@Composable
-private fun nextFireText(alarm: Alarm): String {
-    val next = AlarmScheduler.nextTriggerMillis(alarm) ?: return stringResource(R.string.never_fires)
+private data class FireInfo(
+    val referenceTime: String,
+    val deviceTime: String,
+    val remaining: String,
+)
+
+private fun nextFireInfo(alarm: Alarm, nowMillis: Long): FireInfo? {
+    val next = alarm.snoozeUntilMillis?.takeIf { it > nowMillis }
+        ?: AlarmScheduler.nextTriggerMillis(alarm, nowMillis)
+        ?: return null
     val zone = runCatching { ZoneId.of(alarm.zoneId) }.getOrElse { ZoneId.systemDefault() }
-    val zoned = ZonedDateTime.ofInstant(Instant.ofEpochMilli(next), zone)
-    val durLabel = humanDuration(Duration.between(Instant.now(), Instant.ofEpochMilli(next)))
-    val dayLabel = DateTimeFormatter.ofPattern("EEE h:mm a").format(zoned)
-    return stringResource(R.string.next_fires, "$dayLabel ($durLabel)")
+    val instant = Instant.ofEpochMilli(next)
+    val zoned = ZonedDateTime.ofInstant(instant, zone)
+    val deviceZoned = ZonedDateTime.ofInstant(instant, ZoneId.systemDefault())
+    val durLabel = humanDuration(Duration.between(Instant.ofEpochMilli(nowMillis), instant))
+    val fmt = DateTimeFormatter.ofPattern("MMM d h:mm a")
+    return FireInfo(
+        referenceTime = fmt.format(zoned),
+        deviceTime = fmt.format(deviceZoned),
+        remaining = durLabel,
+    )
 }
 
 private fun humanDuration(d: Duration): String {

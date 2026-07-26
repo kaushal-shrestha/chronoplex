@@ -70,6 +70,9 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms WHERE id = :id")
     suspend fun getById(id: Long): AlarmEntity?
 
+    @Query("SELECT * FROM alarms WHERE clockId = :clockId ORDER BY hour, minute, id")
+    suspend fun getByClockId(clockId: Long): List<AlarmEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(alarm: AlarmEntity): Long
 
@@ -87,6 +90,12 @@ interface AlarmDao {
 
     @Query("UPDATE alarms SET groupId = :groupId WHERE id = :id")
     suspend fun assignToGroup(id: Long, groupId: Long?)
+
+    @Query("UPDATE alarms SET clockId = NULL WHERE clockId = :clockId")
+    suspend fun detachClock(clockId: Long)
+
+    @Query("UPDATE alarms SET clockId = NULL")
+    suspend fun detachAllClocks()
 
     @Query("UPDATE alarms SET groupId = NULL WHERE groupId = :groupId")
     suspend fun unassignGroup(groupId: Long)

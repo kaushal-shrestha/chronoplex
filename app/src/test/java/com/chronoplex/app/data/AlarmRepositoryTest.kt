@@ -109,6 +109,37 @@ class AlarmRepositoryTest {
         assertThat(dao.groups.map { it.id }).containsExactly(travel)
     }
 
+    @Test
+    fun `clock attachment can be queried and detached`(): Unit = runBlocking {
+        val clockId = 42L
+        val attached = repository.upsert(
+            Alarm(
+                label = "Attached",
+                zoneId = "UTC",
+                hour = 8,
+                minute = 0,
+                daysMask = DayMask.EVERY_DAY,
+                clockId = clockId,
+            )
+        )
+        repository.upsert(
+            Alarm(
+                label = "Detached",
+                zoneId = "UTC",
+                hour = 9,
+                minute = 0,
+                daysMask = DayMask.EVERY_DAY,
+            )
+        )
+
+        assertThat(repository.getByClockId(clockId).map { it.id }).containsExactly(attached)
+
+        repository.detachClock(clockId)
+
+        assertThat(repository.getByClockId(clockId)).isEmpty()
+        assertThat(repository.getById(attached)?.clockId).isNull()
+    }
+
     private class FakeAlarmDao : AlarmDao {
         private var nextId = 1L
         private val rows = mutableListOf<AlarmEntity>()
@@ -118,6 +149,8 @@ class AlarmRepositoryTest {
         override fun observeAll(): Flow<List<AlarmEntity>> = MutableStateFlow(rows)
         override suspend fun getAllEnabled(): List<AlarmEntity> = rows.filter { it.enabled }
         override suspend fun getById(id: Long): AlarmEntity? = rows.firstOrNull { it.id == id }
+        override suspend fun getByClockId(clockId: Long): List<AlarmEntity> =
+            rows.filter { it.clockId == clockId }.sortedWith(compareBy({ it.hour }, { it.minute }, { it.id }))
 
         override suspend fun upsert(alarm: AlarmEntity): Long {
             val id = if (alarm.id == 0L) nextId++ else alarm.id
@@ -144,6 +177,18 @@ class AlarmRepositoryTest {
 
         override suspend fun assignToGroup(id: Long, groupId: Long?) {
             getById(id)?.let { rows.replace(id, it.copy(groupId = groupId)) }
+        }
+
+        override suspend fun detachClock(clockId: Long) {
+            rows.toList().forEach { row ->
+                if (row.clockId == clockId) rows.replace(row.id, row.copy(clockId = null))
+            }
+        }
+
+        override suspend fun detachAllClocks() {
+            rows.toList().forEach { row ->
+                if (row.clockId != null) rows.replace(row.id, row.copy(clockId = null))
+            }
         }
 
         override suspend fun unassignGroup(groupId: Long) {

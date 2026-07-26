@@ -3,6 +3,7 @@ package com.chronoplex.app.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chronoplex.app.AppContainer
+import com.chronoplex.app.data.AlarmZoneDisplayMode
 import com.chronoplex.app.data.AlarmZoneSource
 import com.chronoplex.app.domain.AppearanceMode
 import com.chronoplex.app.domain.ThemePalette
@@ -17,6 +18,7 @@ data class SettingsState(
     val appearance: AppearanceMode = AppearanceMode.SYSTEM,
     val palette: ThemePalette = ThemePalette.Anchor,
     val alarmZoneSource: AlarmZoneSource = AlarmZoneSource.ALL_ZONES,
+    val alarmZoneDisplay: AlarmZoneDisplayMode = AlarmZoneDisplayMode.CLOCK_LABEL,
     val firstDayOfWeek: DayOfWeek = DayOfWeek.MONDAY,
     val clocksGrouping: Boolean = false,
     val alarmsGrouping: Boolean = false,
@@ -29,12 +31,14 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         container.settings.appearance,
         container.settings.palette,
         container.settings.alarmZoneSource,
+        container.settings.alarmZoneDisplay,
         container.settings.firstDayOfWeek,
-    ) { appearance, palette, alarmZoneSource, firstDayOfWeek ->
+    ) { appearance, palette, alarmZoneSource, alarmZoneDisplay, firstDayOfWeek ->
         SettingsState(
             appearance = appearance,
             palette = palette,
             alarmZoneSource = alarmZoneSource,
+            alarmZoneDisplay = alarmZoneDisplay,
             firstDayOfWeek = firstDayOfWeek,
         )
     }
@@ -57,6 +61,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setAppearance(m: AppearanceMode) = viewModelScope.launch { container.settings.setAppearance(m) }
     fun setPalette(p: ThemePalette) = viewModelScope.launch { container.settings.setPalette(p) }
     fun setZoneSource(s: AlarmZoneSource) = viewModelScope.launch { container.settings.setAlarmZoneSource(s) }
+    fun setAlarmZoneDisplay(m: AlarmZoneDisplayMode) = viewModelScope.launch { container.settings.setAlarmZoneDisplay(m) }
     fun setFirstDayOfWeek(d: DayOfWeek) = viewModelScope.launch { container.settings.setFirstDayOfWeek(d) }
     fun setClocksGrouping(v: Boolean) = viewModelScope.launch { container.settings.setClocksGroupingEnabled(v) }
     fun setAlarmsGrouping(v: Boolean) = viewModelScope.launch { container.settings.setAlarmsGroupingEnabled(v) }
