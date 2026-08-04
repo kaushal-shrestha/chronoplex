@@ -55,6 +55,7 @@ struct ClocksView: View {
     @State private var showingAdd = false
     @State private var showingGroups = false
     @State private var showingClearConfirmation = false
+    @State private var showingConverter = false
     @State private var converterDate = Date()
     @State private var converterReferenceId: Int64 = 0
 
@@ -62,7 +63,9 @@ struct ClocksView: View {
         NavigationStack {
             List {
                 deviceSection
-                converterSection
+                if showingConverter {
+                    converterSection
+                }
                 savedClockSections
             }
             .navigationTitle("Clocks")
@@ -73,6 +76,14 @@ struct ClocksView: View {
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
+                        Button(showingConverter ? "Hide converter" : "Convert time") {
+                            showingConverter.toggle()
+                            if showingConverter {
+                                converterDate = now
+                            }
+                        }
+                        .disabled(store.clocks.isEmpty && !showingConverter)
+                        Divider()
                         Button("Reset to suggested clocks") { store.resetSuggestedClocks() }
                         Button("Clear all clocks", role: .destructive) { showingClearConfirmation = true }
                     } label: {
@@ -88,6 +99,12 @@ struct ClocksView: View {
             }
             .sheet(isPresented: $showingGroups) {
                 ManageGroupsSheet(kind: .clocks)
+            }
+            .onChange(of: store.clocks.isEmpty) { _, isEmpty in
+                if isEmpty {
+                    showingConverter = false
+                    converterReferenceId = 0
+                }
             }
             .confirmationDialog("Clear all clocks?", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
                 Button("Clear all clocks", role: .destructive) { store.deleteAllClocks() }
