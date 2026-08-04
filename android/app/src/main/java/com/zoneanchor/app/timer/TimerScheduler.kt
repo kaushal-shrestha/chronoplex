@@ -97,6 +97,13 @@ class TimerScheduler(private val context: Context) {
         TimerNotifier.showFinishedNotification(context, timer.copy(state = TimerState.FINISHED))
     }
 
+    fun rescheduleExisting(timer: Timer) {
+        val end = timer.endsAtMillis ?: return
+        if (timer.state == TimerState.RUNNING && end > System.currentTimeMillis()) {
+            scheduleAt(timer.id, end)
+        }
+    }
+
     /** User dismissed a FINISHED timer. */
     suspend fun dismiss(timer: Timer) {
         TimerNotifier.cancel(context, timer.id)

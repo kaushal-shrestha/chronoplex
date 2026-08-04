@@ -143,6 +143,7 @@ class TimerRepositoryTest {
 
         override fun observeAll(): Flow<List<TimerEntity>> = rowsState
         override suspend fun getAllRunning(): List<TimerEntity> = rowsState.value.filter { it.state == TimerState.RUNNING.name }
+        override suspend fun getAll(): List<TimerEntity> = rowsState.value.sortedBy { it.sortOrder }
         override suspend fun getById(id: Long): TimerEntity? = rowsState.value.firstOrNull { it.id == id }
 
         override suspend fun upsert(timer: TimerEntity): Long {
@@ -178,6 +179,7 @@ class TimerRepositoryTest {
         }
 
         override fun observeGroups(): Flow<List<TimerGroupEntity>> = groupsState
+        override suspend fun getAllGroups(): List<TimerGroupEntity> = groups
         override suspend fun getGroupById(id: Long): TimerGroupEntity? = groups.firstOrNull { it.id == id }
 
         override suspend fun upsertGroup(group: TimerGroupEntity): Long {

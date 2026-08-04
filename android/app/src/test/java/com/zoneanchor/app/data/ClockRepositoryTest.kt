@@ -133,6 +133,7 @@ class ClockRepositoryTest {
         }
 
         override fun observeGroups(): Flow<List<ClockGroupEntity>> = groupsState
+        override suspend fun getAllGroups(): List<ClockGroupEntity> = groups
         override suspend fun getGroupById(id: Long): ClockGroupEntity? = groups.firstOrNull { it.id == id }
 
         override suspend fun upsertGroup(group: ClockGroupEntity): Long {

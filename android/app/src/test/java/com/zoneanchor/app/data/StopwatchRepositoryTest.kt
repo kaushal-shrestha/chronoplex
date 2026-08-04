@@ -158,6 +158,7 @@ class StopwatchRepositoryTest {
 
         override fun observeAll(): Flow<List<StopwatchEntity>> = rowsState
         override suspend fun getById(id: Long): StopwatchEntity? = rowsState.value.firstOrNull { it.id == id }
+        override suspend fun getAll(): List<StopwatchEntity> = rowsState.value.sortedBy { it.sortOrder }
 
         override suspend fun upsert(stopwatch: StopwatchEntity): Long {
             val id = if (stopwatch.id == 0L) nextId++ else stopwatch.id
@@ -186,6 +187,9 @@ class StopwatchRepositoryTest {
         override fun observeLaps(stopwatchId: Long): Flow<List<StopwatchLapEntity>> =
             MutableStateFlow(lapsState.value.filter { it.stopwatchId == stopwatchId }.sortedBy { it.lapNumber })
 
+        override suspend fun getAllLaps(): List<StopwatchLapEntity> =
+            lapsState.value.sortedWith(compareBy({ it.stopwatchId }, { it.lapNumber }))
+
         override suspend fun maxLapNumber(stopwatchId: Long): Int =
             lapsState.value.filter { it.stopwatchId == stopwatchId }.maxOfOrNull { it.lapNumber } ?: 0
 
@@ -212,6 +216,7 @@ class StopwatchRepositoryTest {
         }
 
         override fun observeGroups(): Flow<List<StopwatchGroupEntity>> = groupsState
+        override suspend fun getAllGroups(): List<StopwatchGroupEntity> = groups
         override suspend fun getGroupById(id: Long): StopwatchGroupEntity? = groups.firstOrNull { it.id == id }
 
         override suspend fun upsertGroup(group: StopwatchGroupEntity): Long {

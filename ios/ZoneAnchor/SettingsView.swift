@@ -1,8 +1,13 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject private var store: ZoneAnchorStore
     @State private var showingAbout = false
+    @State private var showingExporter = false
+    @State private var showingImporter = false
+    @State private var backupDocument = BackupFileDocument()
+    @State private var backupStatus: String?
 
     var body: some View {
         NavigationStack {
@@ -63,6 +68,24 @@ struct SettingsView: View {
                     Toggle("Group stopwatches", isOn: $store.settings.groupedStopwatches)
                 }
 
+                Section("Backup") {
+                    Button("Export Backup") {
+                        do {
+                            backupDocument = BackupFileDocument(data: try store.exportBackupData())
+                            showingExporter = true
+                        } catch {
+                            backupStatus = error.localizedDescription
+                        }
+                    }
+                    Button("Import Backup") {
+                        showingImporter = true
+                    }
+                    if let backupStatus {
+                        Text(backupStatus)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("About") {
                     Button("About ZoneAnchor") {
                         showingAbout = true
@@ -75,6 +98,41 @@ struct SettingsView: View {
             } message: {
                 Text("Version 0.1.0\nA timezone-aware time-management app for clocks, alarms, timers, and stopwatches.\nCopyright 2026 ZoneAnchor.")
             }
+            .fileExporter(
+                isPresented: $showingExporter,
+                document: backupDocument,
+                contentType: .json,
+                defaultFilename: "zoneanchor-backup-\(Self.todayString).json"
+            ) { result in
+                switch result {
+                case .success:
+                    backupStatus = "Backup saved."
+                case .failure(let error):
+                    backupStatus = error.localizedDescription
+                }
+            }
+            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
+                switch result {
+                case .success(let url):
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer {
+                        if scoped { url.stopAccessingSecurityScopedResource() }
+                    }
+                    do {
+                        backupStatus = try store.importBackupData(Data(contentsOf: url))
+                    } catch {
+                        backupStatus = error.localizedDescription
+                    }
+                case .failure(let error):
+                    backupStatus = error.localizedDescription
+                }
+            }
         }
+    }
+
+    private static var todayString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
     }
 }

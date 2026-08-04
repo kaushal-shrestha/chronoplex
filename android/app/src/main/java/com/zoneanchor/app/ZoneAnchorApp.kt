@@ -3,6 +3,7 @@ package com.zoneanchor.app
 import android.app.Application
 import com.zoneanchor.app.alarm.AlarmScheduler
 import com.zoneanchor.app.data.AlarmRepository
+import com.zoneanchor.app.data.BackupRepository
 import com.zoneanchor.app.data.ClockRepository
 import com.zoneanchor.app.data.SettingsRepository
 import com.zoneanchor.app.data.StopwatchRepository
@@ -29,4 +30,5 @@ class AppContainer(app: Application) {
     val settings = SettingsRepository(app)
     val scheduler = AlarmScheduler(app)
     val timerScheduler = TimerScheduler(app)
+    val backupRepo = BackupRepository(db, clockRepo, alarmRepo, timerRepo, stopwatchRepo, settings)
 }
