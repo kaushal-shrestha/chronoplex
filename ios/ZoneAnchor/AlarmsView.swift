@@ -14,6 +14,7 @@ struct AlarmsView: View {
                 permissionSection
                 alarmSections
             }
+            .zoneAnchorListChrome()
             .navigationTitle("Alarms")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -52,7 +53,7 @@ struct AlarmsView: View {
                         .font(.headline)
                     Text("iOS alarms and timers use local notifications. Enable notifications so ZoneAnchor can ring outside the app.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(store.settings.palette.colors.secondaryText)
                     Button("Enable Notifications") {
                         store.requestNotifications()
                     }
@@ -60,6 +61,7 @@ struct AlarmsView: View {
                 }
                 .padding(.vertical, 4)
             }
+            .zoneAnchorSectionChrome(emphasized: true)
         }
     }
 
@@ -69,14 +71,18 @@ struct AlarmsView: View {
             Section {
                 EmptyStateView(title: "No alarms", detail: "Add a timezone-anchored alarm.", systemImage: "alarm")
             }
+            .zoneAnchorSectionChrome()
         } else if store.settings.groupedAlarms {
             groupedAlarmList
         } else {
-            Section("Alarms") {
+            Section {
                 ForEach(store.alarms) { alarm in
                     AlarmRow(alarm: alarm, now: now, onEdit: { editingAlarm = alarm })
                 }
+            } header: {
+                SectionHeader(title: "Alarms")
             }
+            .zoneAnchorSectionChrome()
         }
     }
 
@@ -96,7 +102,9 @@ struct AlarmsView: View {
                 } label: {
                     SectionHeader(title: bucket.name, subtitle: "\(bucket.items.count) alarms")
                 }
+                .buttonStyle(.plain)
             }
+            .zoneAnchorSectionChrome()
         }
     }
 
@@ -149,13 +157,13 @@ struct AlarmRow: View {
 
             Text("\(zoneDisplay) - \(TimeFormat.repeatLabel(for: alarm, firstDay: store.settings.firstDayOfWeek))")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(store.settings.palette.colors.secondaryText)
 
             if let nextMillis {
                 let date = Date(millis: nextMillis)
                 Text("Next: \(TimeFormat.nextFire(date, zoneId: alarm.zoneId)) reference time - \(TimeFormat.nextFire(date, zoneId: TimeZone.current.identifier)) device - \(TimeFormat.remaining(nextMillis - Date.millis))")
                     .font(.caption)
-                    .foregroundStyle(alarm.isSnoozed() ? .orange : .secondary)
+                    .foregroundStyle(alarm.isSnoozed() ? .orange : store.settings.palette.colors.secondaryText)
             }
 
             if alarm.isSnoozed() {
@@ -170,10 +178,11 @@ struct AlarmRow: View {
             Button(role: .destructive) { store.deleteAlarm(alarm.id) } label: {
                 Label("Delete", systemImage: "trash")
             }
+            .tint(store.settings.palette.colors.destructiveSwipe)
             Button { onEdit() } label: {
                 Label("Edit", systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(store.settings.palette.colors.accent)
         }
         .contextMenu {
             Button("Snooze 1 minute") { store.snoozeAlarm(id: alarm.id, minutes: 1) }
@@ -219,7 +228,7 @@ struct AlarmEditorSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Time") {
+                Section {
                     HStack {
                         Picker("Hour", selection: $draft.hour) {
                             ForEach(0..<24) { Text(String(format: "%02d", $0)).tag($0) }
@@ -230,9 +239,12 @@ struct AlarmEditorSheet: View {
                     }
                     .pickerStyle(.wheel)
                     TextField("Label", text: $draft.label)
+                } header: {
+                    SectionHeader(title: "Time")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Reference Clock") {
+                Section {
                     Picker("Associated clock", selection: Binding(
                         get: { draft.clockId ?? 0 },
                         set: { newValue in
@@ -262,14 +274,17 @@ struct AlarmEditorSheet: View {
                             Text("Time zone")
                             Spacer()
                             Text(draft.zoneId)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(store.settings.palette.colors.secondaryText)
                                 .multilineTextAlignment(.trailing)
                         }
                     }
                     .disabled(draft.clockId != nil)
+                } header: {
+                    SectionHeader(title: "Reference Clock")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Repeat") {
+                Section {
                     Picker("Repeat", selection: $draft.repeatType) {
                         ForEach(AlarmRepeatType.allCases) { type in
                             Text(type.title).tag(type)
@@ -321,18 +336,28 @@ struct AlarmEditorSheet: View {
                         }
                     }
                     .buttonStyle(.bordered)
+                } header: {
+                    SectionHeader(title: "Repeat")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Alert") {
+                Section {
                     Toggle("Sound", isOn: $draft.soundEnabled)
                     Toggle("Vibration", isOn: $draft.vibrationEnabled)
                     Toggle("Enabled", isOn: $draft.enabled)
+                } header: {
+                    SectionHeader(title: "Alert")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Organization") {
+                Section {
                     GroupPicker(kind: .alarms, groupId: $draft.groupId)
+                } header: {
+                    SectionHeader(title: "Organization")
                 }
+                .zoneAnchorSectionChrome()
             }
+            .zoneAnchorListChrome()
             .navigationTitle(draft.id == 0 ? "Add Alarm" : "Edit Alarm")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -353,6 +378,7 @@ struct AlarmEditorSheet: View {
 }
 
 struct DayOfWeekPicker: View {
+    @EnvironmentObject private var store: ZoneAnchorStore
     @Binding var daysMask: Int
     let firstDay: FirstDayOfWeek
 
@@ -365,7 +391,7 @@ struct DayOfWeekPicker: View {
                     Text(TimeFormat.shortWeekdayName(day).prefix(1))
                         .font(.caption.weight(.bold))
                         .frame(width: 32, height: 32)
-                        .background(DayMask.contains(daysMask, weekday: day) ? Color.accentColor : Color.secondary.opacity(0.14))
+                        .background(DayMask.contains(daysMask, weekday: day) ? store.settings.palette.colors.accent : store.settings.palette.colors.selectedBackground)
                         .foregroundStyle(DayMask.contains(daysMask, weekday: day) ? .white : .primary)
                         .clipShape(Circle())
                 }

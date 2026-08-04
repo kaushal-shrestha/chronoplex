@@ -17,6 +17,9 @@ struct ContentView: View {
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
+        .background(store.settings.palette.colors.background.ignoresSafeArea())
+        .toolbarBackground(store.settings.palette.colors.background, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { date in
             now = date
             store.finishExpiredTimers(nowMillis: Date.millis)
@@ -25,6 +28,7 @@ struct ContentView: View {
 }
 
 struct SectionHeader: View {
+    @EnvironmentObject private var store: ZoneAnchorStore
     var title: String
     var subtitle: String?
 
@@ -32,22 +36,59 @@ struct SectionHeader: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.headline)
+                .foregroundStyle(store.settings.palette.colors.sectionHeader)
             if let subtitle {
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(store.settings.palette.colors.secondaryText)
             }
         }
     }
 }
 
 struct EmptyStateView: View {
+    @EnvironmentObject private var store: ZoneAnchorStore
     var title: String
     var detail: String
     var systemImage: String
 
     var body: some View {
         ContentUnavailableView(title, systemImage: systemImage, description: Text(detail))
+            .foregroundStyle(store.settings.palette.colors.secondaryText)
+    }
+}
+
+private struct ZoneAnchorListChrome: ViewModifier {
+    @EnvironmentObject private var store: ZoneAnchorStore
+
+    func body(content: Content) -> some View {
+        content
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(store.settings.palette.colors.background.ignoresSafeArea())
+            .toolbarBackground(store.settings.palette.colors.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+    }
+}
+
+private struct ZoneAnchorSectionChrome: ViewModifier {
+    @EnvironmentObject private var store: ZoneAnchorStore
+    var emphasized = false
+
+    func body(content: Content) -> some View {
+        content
+            .listRowBackground(emphasized ? store.settings.palette.colors.emphasizedRowBackground : store.settings.palette.colors.rowBackground)
+            .listRowSeparatorTint(store.settings.palette.colors.separator)
+    }
+}
+
+extension View {
+    func zoneAnchorListChrome() -> some View {
+        modifier(ZoneAnchorListChrome())
+    }
+
+    func zoneAnchorSectionChrome(emphasized: Bool = false) -> some View {
+        modifier(ZoneAnchorSectionChrome(emphasized: emphasized))
     }
 }
 
@@ -80,7 +121,7 @@ struct ManageGroupsSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("New group") {
+                Section {
                     HStack {
                         TextField("Name", text: $name)
                         Button("Add") {
@@ -89,9 +130,12 @@ struct ManageGroupsSheet: View {
                         }
                         .disabled(name.trimmed.isEmpty)
                     }
+                } header: {
+                    SectionHeader(title: "New group")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Groups") {
+                Section {
                     ForEach(store.groups(for: kind)) { group in
                         HStack {
                             Button {
@@ -115,8 +159,12 @@ struct ManageGroupsSheet: View {
                             }
                         }
                     }
+                } header: {
+                    SectionHeader(title: "Groups")
                 }
+                .zoneAnchorSectionChrome()
             }
+            .zoneAnchorListChrome()
             .navigationTitle("Groups")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

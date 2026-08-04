@@ -12,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Appearance") {
+                Section {
                     Picker("Mode", selection: $store.settings.appearance) {
                         ForEach(AppearanceMode.allCases) { mode in
                             Text(mode.title).tag(mode)
@@ -20,14 +20,16 @@ struct SettingsView: View {
                     }
                     Picker("Palette", selection: $store.settings.palette) {
                         ForEach(ThemePalette.allCases) { palette in
-                            Label(palette.title, systemImage: "circle.fill")
-                                .foregroundStyle(palette.accent)
+                            PaletteChoiceLabel(palette: palette)
                                 .tag(palette)
                         }
                     }
+                } header: {
+                    SectionHeader(title: "Appearance")
                 }
+                .zoneAnchorSectionChrome(emphasized: true)
 
-                Section("Alarms") {
+                Section {
                     Picker("Default zone source", selection: $store.settings.defaultZoneSource) {
                         ForEach(ZoneSource.allCases) { source in
                             Text(source.title).tag(source)
@@ -51,24 +53,33 @@ struct SettingsView: View {
                             store.requestNotifications()
                         }
                     }
+                } header: {
+                    SectionHeader(title: "Alarms")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Timers") {
+                Section {
                     Picker("Default finish behavior", selection: $store.settings.defaultTimerFinishMode) {
                         ForEach(TimerFinishMode.allCases) { mode in
                             Text(mode.title).tag(mode)
                         }
                     }
+                } header: {
+                    SectionHeader(title: "Timers")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Grouping") {
+                Section {
                     Toggle("Group clocks", isOn: $store.settings.groupedClocks)
                     Toggle("Group alarms", isOn: $store.settings.groupedAlarms)
                     Toggle("Group timers", isOn: $store.settings.groupedTimers)
                     Toggle("Group stopwatches", isOn: $store.settings.groupedStopwatches)
+                } header: {
+                    SectionHeader(title: "Grouping")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Backup") {
+                Section {
                     Button("Export Backup") {
                         do {
                             backupDocument = BackupFileDocument(data: try store.exportBackupData())
@@ -82,16 +93,23 @@ struct SettingsView: View {
                     }
                     if let backupStatus {
                         Text(backupStatus)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(store.settings.palette.colors.secondaryText)
                     }
+                } header: {
+                    SectionHeader(title: "Backup")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("About") {
+                Section {
                     Button("About ZoneAnchor") {
                         showingAbout = true
                     }
+                } header: {
+                    SectionHeader(title: "About")
                 }
+                .zoneAnchorSectionChrome()
             }
+            .zoneAnchorListChrome()
             .navigationTitle("Settings")
             .alert("ZoneAnchor", isPresented: $showingAbout) {
                 Button("OK", role: .cancel) {}
@@ -134,5 +152,25 @@ struct SettingsView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: Date())
+    }
+}
+
+private struct PaletteChoiceLabel: View {
+    let palette: ThemePalette
+
+    var body: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(palette.colors.accent)
+                Circle()
+                    .fill(palette.colors.emphasizedRowBackground)
+                Circle()
+                    .fill(palette.colors.rowBackground)
+            }
+            .frame(width: 44, height: 16)
+
+            Text(palette.title)
+        }
     }
 }

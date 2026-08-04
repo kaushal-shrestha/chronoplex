@@ -23,23 +23,29 @@ struct TimersView: View {
                             }
                         }
                     }
+                    .zoneAnchorSectionChrome(emphasized: true)
                 }
 
                 if store.timers.isEmpty {
                     Section {
                         EmptyStateView(title: "No timers", detail: "Create reusable timers for routines and workflows.", systemImage: "timer")
                     }
+                    .zoneAnchorSectionChrome()
                 } else if store.settings.groupedTimers {
                     groupedTimerList
                 } else {
-                    Section("Timers") {
+                    Section {
                         ForEach(store.timers) { timer in
                             TimerRow(timer: timer, now: now, onEdit: { editingTimer = timer }, onDelete: deleteTimer)
                         }
                         .onMove(perform: store.reorderTimers)
+                    } header: {
+                        SectionHeader(title: "Timers")
                     }
+                    .zoneAnchorSectionChrome()
                 }
             }
+            .zoneAnchorListChrome()
             .navigationTitle("Timers")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -85,7 +91,9 @@ struct TimersView: View {
                 } label: {
                     SectionHeader(title: bucket.name, subtitle: "\(bucket.items.count) timers")
                 }
+                .buttonStyle(.plain)
             }
+            .zoneAnchorSectionChrome()
         }
     }
 
@@ -130,7 +138,7 @@ struct TimerRow: View {
                         .font(.headline)
                     Text(timer.finishMode.title)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(store.settings.palette.colors.secondaryText)
                 }
                 Spacer()
                 Text(TimeFormat.duration(timer.remainingMillis(nowMillis: Int64(now.timeIntervalSince1970 * 1000))))
@@ -156,10 +164,11 @@ struct TimerRow: View {
             Button(role: .destructive) { onDelete(timer) } label: {
                 Label("Delete", systemImage: "trash")
             }
+            .tint(store.settings.palette.colors.destructiveSwipe)
             Button { onEdit() } label: {
                 Label("Edit", systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(store.settings.palette.colors.accent)
         }
     }
 }
@@ -183,7 +192,7 @@ struct TimerEditorSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Timer") {
+                Section {
                     TextField("Label", text: $draft.label)
                     HStack {
                         Stepper("Hours \(hours)", value: $hours, in: 0...23)
@@ -191,20 +200,30 @@ struct TimerEditorSheet: View {
                     }
                     Stepper("Seconds \(seconds)", value: $seconds, in: 0...59)
                     presetButtons
+                } header: {
+                    SectionHeader(title: "Timer")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Finish") {
+                Section {
                     Picker("Behavior", selection: $draft.finishMode) {
                         ForEach(TimerFinishMode.allCases) { mode in
                             Text(mode.title).tag(mode)
                         }
                     }
+                } header: {
+                    SectionHeader(title: "Finish")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Organization") {
+                Section {
                     GroupPicker(kind: .timers, groupId: $draft.groupId)
+                } header: {
+                    SectionHeader(title: "Organization")
                 }
+                .zoneAnchorSectionChrome()
             }
+            .zoneAnchorListChrome()
             .navigationTitle(draft.id == 0 ? "Add Timer" : "Edit Timer")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

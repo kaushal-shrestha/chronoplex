@@ -26,23 +26,29 @@ struct StopwatchesView: View {
                             }
                         }
                     }
+                    .zoneAnchorSectionChrome(emphasized: true)
                 }
 
                 if store.stopwatches.isEmpty {
                     Section {
                         EmptyStateView(title: "No stopwatches", detail: "Track multiple elapsed-time streams with laps.", systemImage: "stopwatch")
                     }
+                    .zoneAnchorSectionChrome()
                 } else if store.settings.groupedStopwatches {
                     groupedStopwatchList
                 } else {
-                    Section("Stopwatches") {
+                    Section {
                         ForEach(store.stopwatches) { stopwatch in
                             StopwatchRow(stopwatch: stopwatch, now: now, onRename: beginRename, onDelete: deleteStopwatch)
                         }
                         .onMove(perform: store.reorderStopwatches)
+                    } header: {
+                        SectionHeader(title: "Stopwatches")
                     }
+                    .zoneAnchorSectionChrome()
                 }
             }
+            .zoneAnchorListChrome()
             .navigationTitle("Stopwatch")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -95,7 +101,9 @@ struct StopwatchesView: View {
                 } label: {
                     SectionHeader(title: bucket.name, subtitle: "\(bucket.items.count) stopwatches")
                 }
+                .buttonStyle(.plain)
             }
+            .zoneAnchorSectionChrome()
         }
     }
 
@@ -151,7 +159,7 @@ struct StopwatchRow: View {
                         .font(.headline)
                     Text(stopwatch.state.rawValue.capitalized)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(store.settings.palette.colors.secondaryText)
                 }
                 Spacer()
                 Text(TimeFormat.duration(stopwatch.elapsedMillis(nowMillis: Int64(now.timeIntervalSince1970 * 1000))))
@@ -181,7 +189,7 @@ struct StopwatchRow: View {
                         .monospacedDigit()
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(store.settings.palette.colors.secondaryText)
             }
         }
         .padding(.vertical, 4)
@@ -189,10 +197,11 @@ struct StopwatchRow: View {
             Button(role: .destructive) { onDelete(stopwatch) } label: {
                 Label("Delete", systemImage: "trash")
             }
+            .tint(store.settings.palette.colors.destructiveSwipe)
             Button { onRename(stopwatch) } label: {
                 Label("Rename", systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(store.settings.palette.colors.accent)
         }
         .contextMenu {
             Button("Rename") { onRename(stopwatch) }

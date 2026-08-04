@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 enum EntityKind: String, Codable, CaseIterable {
     case clocks
@@ -205,18 +206,136 @@ enum ThemePalette: String, Codable, CaseIterable, Identifiable {
     }
 
     var accent: Color {
-        switch self {
-        case .anchor: .blue
-        case .daybreak: .teal
-        case .harbor: .cyan
-        case .grove: .green
-        case .ember: .pink
-        case .twilight: .indigo
-        case .sunrise: .orange
-        case .forest: .mint
-        case .slate: .gray
-        case .plum: .purple
+        colors.accent
+    }
+
+    var colors: ZoneAnchorPaletteColors {
+        let seed: PaletteSeed = switch self {
+        case .anchor:
+            PaletteSeed(primary: RGB(0x2E5FB7), secondary: RGB(0x4A7AC2), tertiary: RGB(0x6F9BD8))
+        case .daybreak:
+            PaletteSeed(primary: RGB(0x006C67), secondary: RGB(0x2DD4BF), tertiary: RGB(0xB9F2EC))
+        case .harbor:
+            PaletteSeed(primary: RGB(0x005B8C), secondary: RGB(0x60A5FA), tertiary: RGB(0xBAE6FD))
+        case .grove:
+            PaletteSeed(primary: RGB(0x237046), secondary: RGB(0x4ADE80), tertiary: RGB(0xBBF7D0))
+        case .ember:
+            PaletteSeed(primary: RGB(0xAD4543), secondary: RGB(0xFB7185), tertiary: RGB(0xFECDD3))
+        case .twilight:
+            PaletteSeed(primary: RGB(0x5C5BB0), secondary: RGB(0xA78BFA), tertiary: RGB(0xDDD6FE))
+        case .sunrise:
+            PaletteSeed(primary: RGB(0xE0664B), secondary: RGB(0xE89461), tertiary: RGB(0xE9B872))
+        case .forest:
+            PaletteSeed(primary: RGB(0x2F7D5E), secondary: RGB(0x4F9C7C), tertiary: RGB(0x89B98F))
+        case .slate:
+            PaletteSeed(primary: RGB(0x4C5664), secondary: RGB(0x6C7585), tertiary: RGB(0x98A0AE))
+        case .plum:
+            PaletteSeed(primary: RGB(0x7A3E8F), secondary: RGB(0x9B5BB5), tertiary: RGB(0xC586D8))
         }
+        return seed.colors
+    }
+}
+
+struct ZoneAnchorPaletteColors {
+    let accent: Color
+    let background: Color
+    let rowBackground: Color
+    let emphasizedRowBackground: Color
+    let selectedBackground: Color
+    let separator: Color
+    let sectionHeader: Color
+    let secondaryText: Color
+    let destructiveSwipe: Color
+}
+
+private struct PaletteSeed {
+    let primary: RGB
+    let secondary: RGB
+    let tertiary: RGB
+
+    var colors: ZoneAnchorPaletteColors {
+        ZoneAnchorPaletteColors(
+            accent: adaptive(
+                light: primary,
+                dark: tertiary.blended(with: .white, amount: 0.16)
+            ),
+            background: adaptive(
+                light: tertiary.blended(with: .white, amount: 0.88),
+                dark: primary.blended(with: .black, amount: 0.86)
+            ),
+            rowBackground: adaptive(
+                light: tertiary.blended(with: .white, amount: 0.72),
+                dark: primary.blended(with: .black, amount: 0.70)
+            ),
+            emphasizedRowBackground: adaptive(
+                light: primary.blended(with: .white, amount: 0.78),
+                dark: secondary.blended(with: .black, amount: 0.62)
+            ),
+            selectedBackground: adaptive(
+                light: secondary.blended(with: .white, amount: 0.64),
+                dark: secondary.blended(with: .black, amount: 0.48)
+            ),
+            separator: adaptive(
+                light: primary.blended(with: .white, amount: 0.60),
+                dark: tertiary.blended(with: .black, amount: 0.45),
+                opacity: 0.42
+            ),
+            sectionHeader: adaptive(
+                light: primary,
+                dark: tertiary.blended(with: .white, amount: 0.18)
+            ),
+            secondaryText: adaptive(
+                light: primary.blended(with: .black, amount: 0.46),
+                dark: tertiary.blended(with: .white, amount: 0.30),
+                opacity: 0.72
+            ),
+            destructiveSwipe: adaptive(
+                light: RGB(0xC84242),
+                dark: RGB(0xFF8A8A)
+            )
+        )
+    }
+
+    private func adaptive(light: RGB, dark: RGB, opacity: Double = 1) -> Color {
+        Color(uiColor: UIColor { traits in
+            let rgb = traits.userInterfaceStyle == .dark ? dark : light
+            return UIColor(
+                red: CGFloat(rgb.red),
+                green: CGFloat(rgb.green),
+                blue: CGFloat(rgb.blue),
+                alpha: CGFloat(opacity)
+            )
+        })
+    }
+}
+
+private struct RGB {
+    static let white = RGB(red: 1, green: 1, blue: 1)
+    static let black = RGB(red: 0, green: 0, blue: 0)
+
+    let red: Double
+    let green: Double
+    let blue: Double
+
+    init(_ hex: Int) {
+        red = Double((hex >> 16) & 0xFF) / 255.0
+        green = Double((hex >> 8) & 0xFF) / 255.0
+        blue = Double(hex & 0xFF) / 255.0
+    }
+
+    private init(red: Double, green: Double, blue: Double) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+    }
+
+    func blended(with other: RGB, amount: Double) -> RGB {
+        let weight = min(max(amount, 0), 1)
+        return RGB(
+            red: red + (other.red - red) * weight,
+            green: green + (other.green - green) * weight,
+            blue: blue + (other.blue - blue) * weight
+        )
     }
 }
 

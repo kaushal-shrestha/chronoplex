@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ZonePickerSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: ZoneAnchorStore
     let zones: [String]
     @Binding var selection: String
     @State private var query = ""
@@ -28,7 +29,7 @@ struct ZonePickerSheet: View {
                             Text(zone.replacingOccurrences(of: "_", with: " "))
                             Text(TimeFormat.clock(Date(), zoneId: zone, seconds: false))
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(store.settings.palette.colors.secondaryText)
                         }
                         Spacer()
                         if zone == selection {
@@ -36,7 +37,10 @@ struct ZonePickerSheet: View {
                         }
                     }
                 }
+                .listRowBackground(store.settings.palette.colors.rowBackground)
+                .listRowSeparatorTint(store.settings.palette.colors.separator)
             }
+            .zoneAnchorListChrome()
             .searchable(text: $query, prompt: "City or time zone")
             .navigationTitle("Time Zone")
             .toolbar {
@@ -68,6 +72,7 @@ struct ClocksView: View {
                 }
                 savedClockSections
             }
+            .zoneAnchorListChrome()
             .navigationTitle("Clocks")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -122,12 +127,13 @@ struct ClocksView: View {
                     .font(.headline)
                 Text(TimeZone.current.identifier)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(store.settings.palette.colors.secondaryText)
             }
             .padding(.vertical, 6)
         } header: {
             SectionHeader(title: "Device Time")
         }
+        .zoneAnchorSectionChrome(emphasized: true)
     }
 
     private var converterSection: some View {
@@ -168,6 +174,7 @@ struct ClocksView: View {
         } header: {
             SectionHeader(title: "Time Converter", subtitle: "Compare a selected instant across saved clocks.")
         }
+        .zoneAnchorSectionChrome()
     }
 
     @ViewBuilder
@@ -176,15 +183,19 @@ struct ClocksView: View {
             Section {
                 EmptyStateView(title: "No saved clocks", detail: "Add a city, office, trip, or routine clock.", systemImage: "clock.badge.plus")
             }
+            .zoneAnchorSectionChrome()
         } else if store.settings.groupedClocks {
             groupedClockList
         } else {
-            Section("Saved Clocks") {
+            Section {
                 ForEach(store.clocks) { clock in
                     ClockRow(clock: clock, now: now, onEdit: { editingClock = clock })
                 }
                 .onMove(perform: store.reorderClocks)
+            } header: {
+                SectionHeader(title: "Saved Clocks")
             }
+            .zoneAnchorSectionChrome()
         }
     }
 
@@ -204,7 +215,9 @@ struct ClocksView: View {
                 } label: {
                     SectionHeader(title: bucket.name, subtitle: "\(bucket.items.count) clocks")
                 }
+                .buttonStyle(.plain)
             }
+            .zoneAnchorSectionChrome()
         }
     }
 
@@ -242,7 +255,7 @@ struct ClockRow: View {
                     .font(.headline)
                 Text("\(TimeFormat.weekdayDate(now, zoneId: clock.zoneId)) - \(clock.zoneId)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(store.settings.palette.colors.secondaryText)
             }
             Spacer()
             Text(TimeFormat.clock(now, zoneId: clock.zoneId, seconds: false))
@@ -253,10 +266,11 @@ struct ClockRow: View {
             Button(role: .destructive) { store.deleteClock(clock.id) } label: {
                 Label("Delete", systemImage: "trash")
             }
+            .tint(store.settings.palette.colors.destructiveSwipe)
             Button { onEdit() } label: {
                 Label("Edit", systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(store.settings.palette.colors.accent)
         }
     }
 }
@@ -274,7 +288,7 @@ struct ClockEditorSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Clock") {
+                Section {
                     TextField("Label", text: $draft.label)
                     Button {
                         showingZonePicker = true
@@ -283,16 +297,23 @@ struct ClockEditorSheet: View {
                             Text("Time zone")
                             Spacer()
                             Text(draft.zoneId)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(store.settings.palette.colors.secondaryText)
                                 .multilineTextAlignment(.trailing)
                         }
                     }
+                } header: {
+                    SectionHeader(title: "Clock")
                 }
+                .zoneAnchorSectionChrome()
 
-                Section("Organization") {
+                Section {
                     GroupPicker(kind: .clocks, groupId: $draft.groupId)
+                } header: {
+                    SectionHeader(title: "Organization")
                 }
+                .zoneAnchorSectionChrome()
             }
+            .zoneAnchorListChrome()
             .navigationTitle(draft.id == 0 ? "Add Clock" : "Edit Clock")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
