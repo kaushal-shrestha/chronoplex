@@ -212,6 +212,11 @@
     <string name="grouping_stopwatches">Group stopwatches</string>
     <string name="grouping_section">Grouping</string>
 
+    <!-- Backup -->
+    <string name="backup_section">Backup</string>
+    <string name="export_backup">Export</string>
+    <string name="import_backup">Import</string>
+
     <!-- Stopwatches -->
     <string name="tab_stopwatches">Stopwatch</string>
     <string name="add_stopwatch">Add stopwatch</string>

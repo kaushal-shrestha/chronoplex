@@ -64,6 +64,7 @@ import java.time.DayOfWeek
 @Composable
 fun SettingsScreen(vm: SettingsViewModel) {
     val state by vm.state.collectAsState()
+    val backupStatus by vm.backupStatus.collectAsState()
     var aboutOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     Scaffold(
@@ -211,6 +212,15 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     label = stringResource(R.string.grouping_stopwatches),
                     checked = state.stopwatchesGrouping,
                     onCheckedChange = vm::setStopwatchesGrouping,
+                )
+            }
+            item {
+                BackupSection(
+                    status = backupStatus,
+                    onExport = vm::exportBackup,
+                    onImport = vm::importBackup,
+                    onSaved = vm::onBackupSaved,
+                    onOpenFailed = vm::onBackupOpenFailed,
                 )
             }
         }

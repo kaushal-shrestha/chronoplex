@@ -148,6 +148,9 @@ class AlarmRepositoryTest {
 
         override fun observeAll(): Flow<List<AlarmEntity>> = MutableStateFlow(rows)
         override suspend fun getAllEnabled(): List<AlarmEntity> = rows.filter { it.enabled }
+        override suspend fun getAll(): List<AlarmEntity> =
+            rows.sortedWith(compareBy({ it.hour }, { it.minute }, { it.id }))
+
         override suspend fun getById(id: Long): AlarmEntity? = rows.firstOrNull { it.id == id }
         override suspend fun getByClockId(clockId: Long): List<AlarmEntity> =
             rows.filter { it.clockId == clockId }.sortedWith(compareBy({ it.hour }, { it.minute }, { it.id }))
@@ -198,6 +201,7 @@ class AlarmRepositoryTest {
         }
 
         override fun observeGroups(): Flow<List<AlarmGroupEntity>> = groupsState
+        override suspend fun getAllGroups(): List<AlarmGroupEntity> = groups
         override suspend fun getGroupById(id: Long): AlarmGroupEntity? = groups.firstOrNull { it.id == id }
 
         override suspend fun upsertGroup(group: AlarmGroupEntity): Long {

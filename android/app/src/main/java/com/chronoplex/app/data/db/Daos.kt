@@ -40,6 +40,9 @@ interface ClockDao {
     @Query("SELECT * FROM clock_groups ORDER BY sortOrder ASC")
     fun observeGroups(): Flow<List<ClockGroupEntity>>
 
+    @Query("SELECT * FROM clock_groups ORDER BY sortOrder ASC")
+    suspend fun getAllGroups(): List<ClockGroupEntity>
+
     @Query("SELECT * FROM clock_groups WHERE id = :id")
     suspend fun getGroupById(id: Long): ClockGroupEntity?
 
@@ -66,6 +69,9 @@ interface AlarmDao {
 
     @Query("SELECT * FROM alarms WHERE enabled = 1")
     suspend fun getAllEnabled(): List<AlarmEntity>
+
+    @Query("SELECT * FROM alarms ORDER BY hour, minute, id")
+    suspend fun getAll(): List<AlarmEntity>
 
     @Query("SELECT * FROM alarms WHERE id = :id")
     suspend fun getById(id: Long): AlarmEntity?
@@ -103,6 +109,9 @@ interface AlarmDao {
     @Query("SELECT * FROM alarm_groups ORDER BY sortOrder ASC")
     fun observeGroups(): Flow<List<AlarmGroupEntity>>
 
+    @Query("SELECT * FROM alarm_groups ORDER BY sortOrder ASC")
+    suspend fun getAllGroups(): List<AlarmGroupEntity>
+
     @Query("SELECT * FROM alarm_groups WHERE id = :id")
     suspend fun getGroupById(id: Long): AlarmGroupEntity?
 
@@ -130,6 +139,9 @@ interface TimerDao {
     @Query("SELECT * FROM timers WHERE state = 'RUNNING'")
     suspend fun getAllRunning(): List<TimerEntity>
 
+    @Query("SELECT * FROM timers ORDER BY sortOrder ASC")
+    suspend fun getAll(): List<TimerEntity>
+
     @Query("SELECT * FROM timers WHERE id = :id")
     suspend fun getById(id: Long): TimerEntity?
 
@@ -153,6 +165,9 @@ interface TimerDao {
 
     @Query("SELECT * FROM timer_groups ORDER BY sortOrder ASC")
     fun observeGroups(): Flow<List<TimerGroupEntity>>
+
+    @Query("SELECT * FROM timer_groups ORDER BY sortOrder ASC")
+    suspend fun getAllGroups(): List<TimerGroupEntity>
 
     @Query("SELECT * FROM timer_groups WHERE id = :id")
     suspend fun getGroupById(id: Long): TimerGroupEntity?
@@ -181,6 +196,9 @@ interface StopwatchDao {
     @Query("SELECT * FROM stopwatches WHERE id = :id")
     suspend fun getById(id: Long): StopwatchEntity?
 
+    @Query("SELECT * FROM stopwatches ORDER BY sortOrder ASC")
+    suspend fun getAll(): List<StopwatchEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(stopwatch: StopwatchEntity): Long
 
@@ -199,6 +217,9 @@ interface StopwatchDao {
     @Query("SELECT * FROM stopwatch_laps WHERE stopwatchId = :stopwatchId ORDER BY lapNumber ASC")
     fun observeLaps(stopwatchId: Long): Flow<List<StopwatchLapEntity>>
 
+    @Query("SELECT * FROM stopwatch_laps ORDER BY stopwatchId ASC, lapNumber ASC")
+    suspend fun getAllLaps(): List<StopwatchLapEntity>
+
     @Query("SELECT COALESCE(MAX(lapNumber), 0) FROM stopwatch_laps WHERE stopwatchId = :stopwatchId")
     suspend fun maxLapNumber(stopwatchId: Long): Int
 
@@ -216,6 +237,9 @@ interface StopwatchDao {
 
     @Query("SELECT * FROM stopwatch_groups ORDER BY sortOrder ASC")
     fun observeGroups(): Flow<List<StopwatchGroupEntity>>
+
+    @Query("SELECT * FROM stopwatch_groups ORDER BY sortOrder ASC")
+    suspend fun getAllGroups(): List<StopwatchGroupEntity>
 
     @Query("SELECT * FROM stopwatch_groups WHERE id = :id")
     suspend fun getGroupById(id: Long): StopwatchGroupEntity?

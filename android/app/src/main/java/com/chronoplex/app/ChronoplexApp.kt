@@ -3,6 +3,7 @@ package com.chronoplex.app
 import android.app.Application
 import com.chronoplex.app.alarm.AlarmScheduler
 import com.chronoplex.app.data.AlarmRepository
+import com.chronoplex.app.data.BackupRepository
 import com.chronoplex.app.data.ClockRepository
 import com.chronoplex.app.data.SettingsRepository
 import com.chronoplex.app.data.StopwatchRepository
@@ -29,4 +30,5 @@ class AppContainer(app: Application) {
     val settings = SettingsRepository(app)
     val scheduler = AlarmScheduler(app)
     val timerScheduler = TimerScheduler(app)
+    val backupRepo = BackupRepository(db, clockRepo, alarmRepo, timerRepo, stopwatchRepo, settings)
 }
