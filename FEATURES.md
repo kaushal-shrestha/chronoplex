@@ -1,6 +1,6 @@
-# Chronoplex - Implemented Feature Catalog
+# ZoneAnchor - Implemented Feature Catalog
 
-This file describes what is currently implemented in Chronoplex. It is meant to
+This file describes what is currently implemented in ZoneAnchor. It is meant to
 be a quick product reference and a lightweight QA checklist.
 
 App version: **0.1.0**
@@ -9,7 +9,7 @@ Target SDK: **36**
 
 ## Product Shape
 
-Chronoplex is a timezone-aware time-management app. Its core idea is that a
+ZoneAnchor is a timezone-aware time-management app. Its core idea is that a
 clock can be a named reference point - a city, team, office, family member,
 trip, or routine - and alarms can be scheduled against that reference clock.
 

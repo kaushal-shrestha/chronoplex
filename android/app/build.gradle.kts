@@ -9,17 +9,17 @@ plugins {
 
 val appVersionName = "0.1.0"
 
-// APK filename will be "<archivesName>-<buildType>.apk", e.g. chronoplex-v0.1.0-release.apk
+// APK filename will be "<archivesName>-<buildType>.apk", e.g. zoneanchor-v0.1.0-release.apk
 base {
-    archivesName.set("chronoplex-v$appVersionName")
+    archivesName.set("zoneanchor-v$appVersionName")
 }
 
 android {
-    namespace = "com.chronoplex.app"
+    namespace = "com.zoneanchor.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.chronoplex.app"
+        applicationId = "com.zoneanchor.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
