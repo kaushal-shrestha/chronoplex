@@ -19,6 +19,7 @@
 		10000000000000000000010A /* StopwatchesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000A /* StopwatchesView.swift */; };
 		10000000000000000000010B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000B /* SettingsView.swift */; };
 		10000000000000000000010C /* AlarmMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000D /* AlarmMathTests.swift */; };
+		10000000000000000000010E /* BackupFileDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000E /* BackupFileDocument.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,6 +46,7 @@
 		10000000000000000000000B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		10000000000000000000000C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		10000000000000000000000D /* AlarmMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmMathTests.swift; sourceTree = "<group>"; };
+		10000000000000000000000E /* BackupFileDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupFileDocument.swift; sourceTree = "<group>"; };
 		100000000000000000000501 /* Chronoplex.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chronoplex.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		100000000000000000000502 /* ChronoplexTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChronoplexTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -78,6 +80,7 @@
 				100000000000000000000009 /* TimersView.swift */,
 				10000000000000000000000A /* StopwatchesView.swift */,
 				10000000000000000000000B /* SettingsView.swift */,
+				10000000000000000000000E /* BackupFileDocument.swift */,
 				10000000000000000000000C /* Info.plist */,
 			);
 			path = Chronoplex;
@@ -194,6 +197,7 @@
 				100000000000000000000109 /* TimersView.swift in Sources */,
 				10000000000000000000010A /* StopwatchesView.swift in Sources */,
 				10000000000000000000010B /* SettingsView.swift in Sources */,
+				10000000000000000000010E /* BackupFileDocument.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -16,6 +16,26 @@ private struct ChronoplexSnapshot: Codable {
     var settings: AppSettings = AppSettings()
 }
 
+struct ChronoplexBackupDocument: Codable {
+    var app: String = "chronoplex"
+    var schemaVersion: Int = 1
+    var exportedAt: Date = Date()
+    var settings: AppSettings = AppSettings()
+    var groups: Groups = Groups()
+    var clocks: [ClockEntry] = []
+    var alarms: [AlarmEntry] = []
+    var timers: [ChronoTimer] = []
+    var stopwatches: [StopwatchEntry] = []
+    var laps: [StopwatchLap] = []
+
+    struct Groups: Codable {
+        var clocks: [ItemGroup] = []
+        var alarms: [ItemGroup] = []
+        var timers: [ItemGroup] = []
+        var stopwatches: [ItemGroup] = []
+    }
+}
+
 @MainActor
 final class ChronoplexStore: ObservableObject {
     @Published var clocks: [ClockEntry] = [] { didSet { persistAndReschedule() } }
@@ -63,6 +83,64 @@ final class ChronoplexStore: ObservableObject {
                 self?.rescheduleAllNotifications()
             }
         }
+    }
+
+    func exportBackupData() throws -> Data {
+        let document = ChronoplexBackupDocument(
+            settings: settings,
+            groups: ChronoplexBackupDocument.Groups(
+                clocks: clockGroups,
+                alarms: alarmGroups,
+                timers: timerGroups,
+                stopwatches: stopwatchGroups
+            ),
+            clocks: clocks,
+            alarms: alarms,
+            timers: timers,
+            stopwatches: stopwatches,
+            laps: laps
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(document)
+    }
+
+    func importBackupData(_ data: Data) throws -> String {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let document = try decoder.decode(ChronoplexBackupDocument.self, from: data)
+        guard document.schemaVersion <= 1 else {
+            throw BackupError.unsupportedVersion
+        }
+        isLoading = true
+        settings = document.settings
+        clockGroups = document.groups.clocks.sorted { $0.sortOrder < $1.sortOrder }
+        alarmGroups = document.groups.alarms.sorted { $0.sortOrder < $1.sortOrder }
+        timerGroups = document.groups.timers.sorted { $0.sortOrder < $1.sortOrder }
+        stopwatchGroups = document.groups.stopwatches.sorted { $0.sortOrder < $1.sortOrder }
+        clocks = document.clocks.map(cleanClock).sorted { $0.sortOrder < $1.sortOrder }
+        alarms = document.alarms.map(cleanAlarm).sorted(by: alarmSort)
+        timers = document.timers.map(cleanTimer).sorted { $0.sortOrder < $1.sortOrder }
+        stopwatches = document.stopwatches.map(cleanStopwatch).sorted { $0.sortOrder < $1.sortOrder }
+        laps = document.laps.sorted {
+            if $0.stopwatchId != $1.stopwatchId { return $0.stopwatchId < $1.stopwatchId }
+            return $0.lapNumber < $1.lapNumber
+        }
+        var importedMaxId = Int64(0)
+        for id in clocks.map(\.id) { importedMaxId = max(importedMaxId, id) }
+        for id in alarms.map(\.id) { importedMaxId = max(importedMaxId, id) }
+        for id in timers.map(\.id) { importedMaxId = max(importedMaxId, id) }
+        for id in stopwatches.map(\.id) { importedMaxId = max(importedMaxId, id) }
+        for id in laps.map(\.id) { importedMaxId = max(importedMaxId, id) }
+        for id in clockGroups.map(\.id) { importedMaxId = max(importedMaxId, id) }
+        for id in alarmGroups.map(\.id) { importedMaxId = max(importedMaxId, id) }
+        for id in timerGroups.map(\.id) { importedMaxId = max(importedMaxId, id) }
+        for id in stopwatchGroups.map(\.id) { importedMaxId = max(importedMaxId, id) }
+        nextId = max(nextId, importedMaxId + 1)
+        isLoading = false
+        persistAndReschedule()
+        return "Imported \(clocks.count) clocks, \(alarms.count) alarms, \(timers.count) timers, \(stopwatches.count) stopwatches."
     }
 
     // MARK: - Clocks
@@ -493,6 +571,17 @@ final class ChronoplexStore: ObservableObject {
         clean.label = Validate.label(clean.label)
         clean.accumulatedMillis = max(0, clean.accumulatedMillis)
         return clean
+    }
+}
+
+enum BackupError: LocalizedError {
+    case unsupportedVersion
+
+    var errorDescription: String? {
+        switch self {
+        case .unsupportedVersion:
+            return "This backup was created by a newer Chronoplex version."
+        }
     }
 }
 
