@@ -467,19 +467,15 @@ private fun AlarmRow(
                         )
                     }
                     Text(
-                        zoneLabel,
+                        zoneLabel + "  \u25CF  " + repeatLabel(alarm),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Switch(checked = alarm.enabled, onCheckedChange = rememberToggleFeedback { onToggle() })
             }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                repeatLabel(alarm),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             if (alarm.enabled) {
                 nextFireInfo(alarm, nowMillis)?.let { info ->
                     Spacer(Modifier.height(8.dp))

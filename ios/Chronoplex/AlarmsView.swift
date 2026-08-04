@@ -4,6 +4,8 @@ struct AlarmsView: View {
     @EnvironmentObject private var store: ChronoplexStore
     let now: Date
     @State private var showingAdd = false
+    @State private var newAlarmDraft = AlarmEntry(id: 0)
+    @State private var newAlarmZoneSource: ZoneSource?
     @State private var editingAlarm: AlarmEntry?
     @State private var showingGroups = false
     @State private var showingClearConfirmation = false
@@ -29,7 +31,13 @@ struct AlarmsView: View {
                 }
             }
             .sheet(isPresented: $showingAdd) {
-                AlarmEditorSheet(alarm: AlarmEntry(id: 0), zoneSource: store.settings.defaultZoneSource)
+                AlarmEditorSheet(
+                    alarm: newAlarmDraft,
+                    zoneSource: newAlarmZoneSource ?? store.settings.defaultZoneSource,
+                    onDraftChange: { newAlarmDraft = $0 },
+                    onZoneSourceChange: { newAlarmZoneSource = $0 },
+                    onClearDraft: { clearNewAlarmDraft() }
+                )
             }
             .sheet(item: $editingAlarm) { alarm in
                 AlarmEditorSheet(alarm: alarm, zoneSource: store.settings.defaultZoneSource)
@@ -41,6 +49,11 @@ struct AlarmsView: View {
                 Button("Clear all alarms", role: .destructive) { store.deleteAllAlarms() }
             }
         }
+    }
+
+    private func clearNewAlarmDraft() {
+        newAlarmDraft = AlarmEntry(id: 0)
+        newAlarmZoneSource = store.settings.defaultZoneSource
     }
 
     @ViewBuilder
@@ -147,9 +160,11 @@ struct AlarmRow: View {
                 .labelsHidden()
             }
 
-            Text("\(zoneDisplay) - \(TimeFormat.repeatLabel(for: alarm, firstDay: store.settings.firstDayOfWeek))")
+            Text("\(zoneDisplay)  ●  \(TimeFormat.repeatLabel(for: alarm, firstDay: store.settings.firstDayOfWeek))")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
             if let nextMillis {
                 let date = Date(millis: nextMillis)
@@ -200,10 +215,22 @@ struct AlarmEditorSheet: View {
     @State private var draft: AlarmEntry
     @State private var zoneSource: ZoneSource
     @State private var showingZonePicker = false
+    private let onDraftChange: (AlarmEntry) -> Void
+    private let onZoneSourceChange: (ZoneSource) -> Void
+    private let onClearDraft: () -> Void
 
-    init(alarm: AlarmEntry, zoneSource: ZoneSource) {
+    init(
+        alarm: AlarmEntry,
+        zoneSource: ZoneSource,
+        onDraftChange: @escaping (AlarmEntry) -> Void = { _ in },
+        onZoneSourceChange: @escaping (ZoneSource) -> Void = { _ in },
+        onClearDraft: @escaping () -> Void = {}
+    ) {
         _draft = State(initialValue: alarm)
         _zoneSource = State(initialValue: zoneSource)
+        self.onDraftChange = onDraftChange
+        self.onZoneSourceChange = onZoneSourceChange
+        self.onClearDraft = onClearDraft
     }
 
     private var zoneChoices: [String] {
@@ -338,9 +365,17 @@ struct AlarmEditorSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItemGroup(placement: .confirmationAction) {
+                    if draft.id == 0 {
+                        Button("Clear") {
+                            clearDraft()
+                        }
+                    }
                     Button("Save") {
                         store.upsertAlarm(draft)
+                        if draft.id == 0 {
+                            onClearDraft()
+                        }
                         dismiss()
                     }
                 }
@@ -348,7 +383,19 @@ struct AlarmEditorSheet: View {
             .sheet(isPresented: $showingZonePicker) {
                 ZonePickerSheet(zones: zoneChoices, selection: $draft.zoneId)
             }
+            .onChange(of: draft) { _, newValue in
+                onDraftChange(newValue)
+            }
+            .onChange(of: zoneSource) { _, newValue in
+                onZoneSourceChange(newValue)
+            }
         }
+    }
+
+    private func clearDraft() {
+        draft = AlarmEntry(id: 0)
+        zoneSource = store.settings.defaultZoneSource
+        onClearDraft()
     }
 }
 

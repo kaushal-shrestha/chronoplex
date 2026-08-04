@@ -112,6 +112,11 @@ class AlarmEditViewModel(
 ) : ViewModel() {
     val state = MutableStateFlow(AlarmEditState())
 
+    private fun newAlarmState(defaultSource: AlarmZoneSource): AlarmEditState = AlarmEditState(
+        zoneId = java.time.ZoneId.systemDefault().id,
+        zoneSource = defaultSource,
+    )
+
     val clocks: StateFlow<List<Clock>> = container.clockRepo.observeAll()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -124,10 +129,8 @@ class AlarmEditViewModel(
     fun load(id: Long) = viewModelScope.launch {
         val defaultSource = container.settings.alarmZoneSource.first()
         if (id <= 0L) {
-            state.value = AlarmEditState(
-                zoneId = java.time.ZoneId.systemDefault().id,
-                zoneSource = defaultSource,
-            )
+            if (state.value.id == 0L && state.value.zoneId.isNotBlank()) return@launch
+            state.value = newAlarmState(defaultSource)
             return@launch
         }
         container.alarmRepo.getById(id)?.let { a ->
@@ -152,6 +155,10 @@ class AlarmEditViewModel(
                 monthlyWeekday = a.monthlyWeekday,
             )
         }
+    }
+
+    fun resetNewAlarmDraft() = viewModelScope.launch {
+        state.value = newAlarmState(container.settings.alarmZoneSource.first())
     }
 
     fun setZoneSource(source: AlarmZoneSource) = state.update { it.copy(zoneSource = source) }
@@ -228,6 +235,9 @@ class AlarmEditViewModel(
         val newId = container.alarmRepo.upsert(alarm)
         val saved = alarm.copy(id = if (alarm.id == 0L) newId else alarm.id)
         container.scheduler.schedule(saved)
+        if (s.id == 0L) {
+            state.value = newAlarmState(container.settings.alarmZoneSource.first())
+        }
         onDone()
     }
 }

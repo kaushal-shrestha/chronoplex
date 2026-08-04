@@ -161,6 +161,16 @@ fun AlarmEditSheet(
                         )
                     }
                 }
+                if (s.id == 0L) {
+                    TextButton(onClick = rememberTapFeedback {
+                        vm.resetNewAlarmDraft()
+                        timeState.hour = 0
+                        timeState.minute = 0
+                        advancedRepeatOpen = false
+                    }) {
+                        Text(stringResource(R.string.clear))
+                    }
+                }
                 TextButton(
                     onClick = rememberTapFeedback { vm.save { dismissAnimated() } },
                     enabled = s.zoneId.isNotBlank(),
