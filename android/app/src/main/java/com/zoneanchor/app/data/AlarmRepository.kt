@@ -22,12 +22,7 @@ class AlarmRepository(private val dao: AlarmDao) {
 
     suspend fun upsert(alarm: Alarm): Long {
         val cleaned = alarm.clean()
-        return if (cleaned.id == 0L) {
-            dao.upsert(AlarmEntity.fromDomain(cleaned))
-        } else {
-            dao.update(AlarmEntity.fromDomain(cleaned))
-            cleaned.id
-        }
+        return dao.upsert(AlarmEntity.fromDomain(cleaned))
     }
 
     suspend fun setEnabled(id: Long, enabled: Boolean) {

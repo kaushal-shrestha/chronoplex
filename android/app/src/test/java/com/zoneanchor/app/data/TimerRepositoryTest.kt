@@ -35,6 +35,16 @@ class TimerRepositoryTest {
         assertThat(saved?.finishMode).isEqualTo(TimerFinishMode.FULL_SCREEN)
     }
 
+    @Test fun `upsert with explicit backup id inserts missing timer`(): Unit = runBlocking {
+        val returnedId = repository.upsert(Timer(id = 88L, label = "  Backup timer  ", durationMillis = 90_000L))
+        val saved = repository.getById(88L)
+
+        assertThat(returnedId).isEqualTo(88L)
+        assertThat(saved?.id).isEqualTo(88L)
+        assertThat(saved?.label).isEqualTo("Backup timer")
+        assertThat(saved?.durationMillis).isEqualTo(90_000L)
+    }
+
     @Test fun `existing timer update keeps the same id and running query returns clean rows`(): Unit = runBlocking {
         val id = repository.upsert(Timer(label = "Tea", durationMillis = 180_000L))
 

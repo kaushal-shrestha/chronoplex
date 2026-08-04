@@ -28,6 +28,17 @@ class ClockRepositoryTest {
     }
 
     @Test
+    fun `upsert with explicit backup id inserts missing clock`(): Unit = runBlocking {
+        val returnedId = repository.upsert(Clock(id = 42L, label = "  Kathmandu  ", zoneId = "Asia/Kathmandu"))
+        val saved = repository.getAll().single()
+
+        assertThat(returnedId).isEqualTo(42L)
+        assertThat(saved.id).isEqualTo(42L)
+        assertThat(saved.label).isEqualTo("Kathmandu")
+        assertThat(saved.zoneId).isEqualTo("Asia/Kathmandu")
+    }
+
+    @Test
     fun `reorder updates clock observation order`(): Unit = runBlocking {
         val first = repository.upsert(Clock(label = "First", zoneId = "UTC", sortOrder = 0))
         val second = repository.upsert(Clock(label = "Second", zoneId = "America/New_York", sortOrder = 1))

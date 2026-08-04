@@ -33,6 +33,15 @@ class StopwatchRepositoryTest {
         assertThat(saved?.state).isEqualTo(StopwatchState.PAUSED)
     }
 
+    @Test fun `upsert with explicit backup id inserts missing stopwatch`(): Unit = runBlocking {
+        val returnedId = repository.upsert(Stopwatch(id = 99L, label = "  Backup stopwatch  "))
+        val saved = repository.getById(99L)
+
+        assertThat(returnedId).isEqualTo(99L)
+        assertThat(saved?.id).isEqualTo(99L)
+        assertThat(saved?.label).isEqualTo("Backup stopwatch")
+    }
+
     @Test fun `existing stopwatch update keeps the same id and corrupt state reads as idle`(): Unit = runBlocking {
         val id = repository.upsert(Stopwatch(label = "Run"))
 

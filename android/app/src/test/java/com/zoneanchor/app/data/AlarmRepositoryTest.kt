@@ -58,6 +58,26 @@ class AlarmRepositoryTest {
     }
 
     @Test
+    fun `upsert with explicit backup id inserts missing alarm`(): Unit = runBlocking {
+        val returnedId = repository.upsert(
+            Alarm(
+                id = 77L,
+                label = "  Backup alarm  ",
+                zoneId = "America/New_York",
+                hour = 16,
+                minute = 0,
+                daysMask = DayMask.EVERY_DAY,
+            )
+        )
+        val saved = repository.getById(77L)
+
+        assertThat(returnedId).isEqualTo(77L)
+        assertThat(saved?.id).isEqualTo(77L)
+        assertThat(saved?.label).isEqualTo("Backup alarm")
+        assertThat(saved?.hour).isEqualTo(16)
+    }
+
+    @Test
     fun `repository sanitizes corrupt alarm rows on read`(): Unit = runBlocking {
         dao.upsert(
             AlarmEntity(

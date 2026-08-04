@@ -20,12 +20,7 @@ class StopwatchRepository(private val dao: StopwatchDao) {
 
     suspend fun upsert(stopwatch: Stopwatch): Long {
         val cleaned = stopwatch.clean()
-        return if (cleaned.id == 0L) {
-            dao.upsert(StopwatchEntity.fromDomain(cleaned))
-        } else {
-            dao.update(StopwatchEntity.fromDomain(cleaned))
-            cleaned.id
-        }
+        return dao.upsert(StopwatchEntity.fromDomain(cleaned))
     }
 
     suspend fun updateState(

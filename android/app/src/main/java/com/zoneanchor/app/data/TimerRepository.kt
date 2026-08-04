@@ -20,12 +20,7 @@ class TimerRepository(private val dao: TimerDao) {
 
     suspend fun upsert(timer: Timer): Long {
         val cleaned = timer.clean()
-        return if (cleaned.id == 0L) {
-            dao.upsert(TimerEntity.fromDomain(cleaned))
-        } else {
-            dao.update(TimerEntity.fromDomain(cleaned))
-            cleaned.id
-        }
+        return dao.upsert(TimerEntity.fromDomain(cleaned))
     }
 
     suspend fun updateState(

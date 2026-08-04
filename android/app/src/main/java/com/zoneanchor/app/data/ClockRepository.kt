@@ -17,12 +17,7 @@ class ClockRepository(private val dao: ClockDao) {
 
     suspend fun upsert(clock: Clock): Long {
         val cleaned = clock.clean()
-        return if (cleaned.id == 0L) {
-            dao.upsert(ClockEntity.fromDomain(cleaned))
-        } else {
-            dao.update(ClockEntity.fromDomain(cleaned))
-            cleaned.id
-        }
+        return dao.upsert(ClockEntity.fromDomain(cleaned))
     }
 
     suspend fun delete(id: Long) = dao.deleteById(id)
