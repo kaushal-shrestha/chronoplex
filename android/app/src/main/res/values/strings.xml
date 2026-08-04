@@ -137,7 +137,10 @@
 
     <string name="alarm_channel_name">Alarms</string>
     <string name="alarm_channel_description">Plays Chronoplex alarms</string>
-    <string name="notification_alarm_text">Alarm anchored to %1$s</string>
+    <string name="notification_alarm_title">Alarm ringing</string>
+    <string name="notification_alarm_text">Ringing now in %1$s</string>
+    <string name="notification_alarm_text_with_zone">Ringing now in %1$s (%2$s)</string>
+    <string name="notification_snooze_5">Snooze 5 min</string>
 
     <string name="permission_notifications_rationale">Notifications are off — the full-screen alarm relies on a notification with a full-screen intent.</string>
     <string name="permission_exact_alarm_rationale">Exact alarm permission is required so alarms fire at the scheduled minute.</string>

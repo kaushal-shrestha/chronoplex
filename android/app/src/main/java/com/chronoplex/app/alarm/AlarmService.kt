@@ -71,7 +71,11 @@ class AlarmService : Service() {
             SnoozeNotifier.cancel(applicationContext, alarmId)
 
             acquireWakeLock()
-            startForeground(NOTIFICATION_ID, buildNotification(alarm))
+            val clockLabel = alarm.clockId
+                ?.let { app.container.clockRepo.getById(it) }
+                ?.label
+                ?.takeIf { it.isNotBlank() }
+            startForeground(NOTIFICATION_ID, buildNotification(alarm, clockLabel))
 
             if (alarm.soundEnabled) playRingtone()
             if (alarm.vibrationEnabled) startVibration()
@@ -158,7 +162,7 @@ class AlarmService : Service() {
         }
     }
 
-    private fun buildNotification(alarm: Alarm): android.app.Notification {
+    private fun buildNotification(alarm: Alarm, clockLabel: String?): android.app.Notification {
         val fullScreenIntent = Intent(this, AlarmActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(AlarmActivity.EXTRA_ALARM_ID, alarm.id)
@@ -169,12 +173,21 @@ class AlarmService : Service() {
             fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val title = alarm.label.ifBlank { getString(R.string.app_name) }
-        val text = getString(R.string.notification_alarm_text, alarm.zoneId)
+        val snoozePi = alarmActionPendingIntent(alarm.id, AlarmReceiver.ACTION_SNOOZE, "snooze")
+        val dismissPi = alarmActionPendingIntent(alarm.id, AlarmReceiver.ACTION_DISMISS, "dismiss")
+        val title = alarm.label.ifBlank { getString(R.string.notification_alarm_title) }
+        val anchorLabel = clockLabel ?: alarm.zoneId
+        val text = getString(R.string.notification_alarm_text, anchorLabel)
+        val expandedText = if (clockLabel == null) {
+            text
+        } else {
+            getString(R.string.notification_alarm_text_with_zone, clockLabel, alarm.zoneId)
+        }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(expandedText))
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -182,7 +195,28 @@ class AlarmService : Service() {
             .setAutoCancel(false)
             .setFullScreenIntent(fullScreenPi, true)
             .setContentIntent(fullScreenPi)
+            .addAction(0, getString(R.string.notification_snooze_5), snoozePi)
+            .addAction(0, getString(R.string.dismiss), dismissPi)
             .build()
+    }
+
+    private fun alarmActionPendingIntent(alarmId: Long, action: String, path: String): PendingIntent {
+        val intent = Intent(this, AlarmReceiver::class.java).apply {
+            this.action = action
+            putExtra(AlarmReceiver.EXTRA_ALARM_ID, alarmId)
+            data = android.net.Uri.parse("chronoplex://alarm-action/$path/$alarmId")
+        }
+        val requestOffset = when (action) {
+            AlarmReceiver.ACTION_SNOOZE -> 10_000
+            AlarmReceiver.ACTION_DISMISS -> 20_000
+            else -> 30_000
+        }
+        return PendingIntent.getBroadcast(
+            this,
+            requestOffset + alarmId.toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     private fun launchFullScreen(alarmId: Long) {

@@ -16,6 +16,9 @@ interface ClockDao {
     @Query("SELECT * FROM clocks ORDER BY sortOrder ASC")
     suspend fun getAll(): List<ClockEntity>
 
+    @Query("SELECT * FROM clocks WHERE id = :id")
+    suspend fun getById(id: Long): ClockEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(clock: ClockEntity): Long
 

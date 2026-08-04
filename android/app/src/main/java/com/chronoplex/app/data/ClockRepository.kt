@@ -15,6 +15,8 @@ class ClockRepository(private val dao: ClockDao) {
 
     suspend fun getAll(): List<Clock> = dao.getAll().map { it.toDomain().clean() }
 
+    suspend fun getById(id: Long): Clock? = dao.getById(id)?.toDomain()?.clean()
+
     suspend fun upsert(clock: Clock): Long {
         val cleaned = clock.clean()
         return if (cleaned.id == 0L) {

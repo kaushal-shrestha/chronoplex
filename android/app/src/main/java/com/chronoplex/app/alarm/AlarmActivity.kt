@@ -9,6 +9,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,8 +21,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -37,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -48,8 +52,8 @@ import com.chronoplex.app.R
 import com.chronoplex.app.ChronoplexApp
 import com.chronoplex.app.domain.Alarm
 import com.chronoplex.app.ui.theme.ChronoplexTheme
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -58,6 +62,7 @@ import java.time.format.DateTimeFormatter
 class AlarmActivity : ComponentActivity() {
 
     private val state = MutableStateFlow<Alarm?>(null)
+    private val clockLabelState = MutableStateFlow<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,8 +97,10 @@ class AlarmActivity : ComponentActivity() {
             val palette by app.container.settings.palette.collectAsState(initial = com.chronoplex.app.domain.ThemePalette.Anchor)
             ChronoplexTheme(appearance = appearance, palette = palette) {
                 val alarm by state.collectAsState()
+                val clockLabel by clockLabelState.collectAsState()
                 AlarmScreen(
                     alarm = alarm,
+                    clockLabel = clockLabel,
                     onDismiss = { dismiss() },
                     onSnooze = { minutes -> snooze(minutes) },
                 )
@@ -112,7 +119,12 @@ class AlarmActivity : ComponentActivity() {
         if (alarmId < 0) { finish(); return }
         val app = applicationContext as ChronoplexApp
         lifecycleScope.launch {
-            state.value = app.container.alarmRepo.getById(alarmId)
+            val alarm = app.container.alarmRepo.getById(alarmId)
+            state.value = alarm
+            clockLabelState.value = alarm?.clockId
+                ?.let { app.container.clockRepo.getById(it) }
+                ?.label
+                ?.takeIf { it.isNotBlank() }
         }
     }
 
@@ -154,6 +166,7 @@ class AlarmActivity : ComponentActivity() {
 @androidx.compose.runtime.Composable
 private fun AlarmScreen(
     alarm: Alarm?,
+    clockLabel: String?,
     onDismiss: () -> Unit,
     onSnooze: (Int) -> Unit,
 ) {
@@ -171,13 +184,18 @@ private fun AlarmScreen(
         ) {
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.AccessTime,
-                        contentDescription = null,
-                        modifier = Modifier.size(72.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.height(24.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ) {
+                        Icon(
+                            Icons.Default.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.padding(18.dp).size(64.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(28.dp))
                     val now = remember { mutableStateOf(ZonedDateTime.now()) }
                     LaunchedEffect(alarm?.zoneId) {
                         while (true) {
@@ -188,54 +206,102 @@ private fun AlarmScreen(
                     val fmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
                     Text(
                         fmt.format(now.value),
-                        fontSize = 64.sp,
+                        fontSize = 72.sp,
                         fontWeight = FontWeight.Light,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     if (alarm != null) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            alarm.zoneId,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        val anchorLabel = clockLabel ?: alarm.zoneId
                         if (alarm.label.isNotBlank()) {
                             Spacer(Modifier.height(16.dp))
                             Text(
                                 alarm.label,
-                                fontSize = 22.sp,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            anchorLabel,
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (clockLabel != null) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                alarm.zoneId,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                             )
                         }
                     }
                 }
             }
-            Text(
-                stringResource(R.string.snooze_for),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
-            )
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                listOf(1, 5, 10).forEach { mins ->
-                    OutlinedButton(
-                        onClick = { onSnooze(mins) },
-                        modifier = Modifier.weight(1f).height(56.dp),
-                    ) { Text(stringResource(R.string.snooze_minutes, mins)) }
+                Text(
+                    stringResource(R.string.snooze_for),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    listOf(1, 5, 10).forEach { mins ->
+                        OutlinedButton(
+                            onClick = { onSnooze(mins) },
+                            modifier = Modifier.weight(1f).height(60.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(
+                                1.5.dp,
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.75f),
+                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                                contentColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        ) {
+                            Text(
+                                stringResource(R.string.snooze_minutes, mins),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(96.dp),
+                    shape = RoundedCornerShape(30.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp,
+                    ),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        stringResource(R.string.dismiss),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth().height(64.dp).padding(vertical = 4.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            ) { Text(stringResource(R.string.dismiss)) }
         }
     }
 }
-
