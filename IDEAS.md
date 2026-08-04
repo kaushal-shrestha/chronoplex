@@ -1,4 +1,4 @@
-# Chronoplex - Ideas, Backlog, And Decisions
+# ZoneAnchor - Ideas, Backlog, And Decisions
 
 This file is the product parking lot. It keeps track of ideas that shipped,
 ideas still worth considering, and ideas that were deferred or cancelled.
@@ -62,7 +62,7 @@ Legend:
 
 ### Branding and polish
 
-- [x] Rename the app to Chronoplex.
+- [x] Rename the app to ZoneAnchor.
 - [x] Add the C+P launcher icon artwork.
 - [x] Add About in Settings.
 - [x] Add haptic and click feedback to tappable controls.
@@ -80,7 +80,7 @@ Legend:
       hybrid with review before save.
 
 Why it matters: the recurrence engine is now powerful, but advanced forms are
-still UI-driven. Natural language could make Chronoplex feel like a reminder
+still UI-driven. Natural language could make ZoneAnchor feel like a reminder
 assistant without losing its explicit scheduling model.
 
 ### City/place search
@@ -90,13 +90,13 @@ assistant without losing its explicit scheduling model.
 - [ ] Decide how to represent places that share a time zone but should have
       different user labels.
 
-Why it matters: Chronoplex's mental model is "people/places/routines", while
+Why it matters: ZoneAnchor's mental model is "people/places/routines", while
 IANA IDs are still a technical interface.
 
 ### README and product screenshots
 
 - [ ] Add a proper `README.md`.
-- [ ] Position Chronoplex as a timezone-aware alarm/reminder app built around
+- [ ] Position ZoneAnchor as a timezone-aware alarm/reminder app built around
       named reference clocks.
 - [ ] Add screenshots or short screen recordings.
 - [ ] Add build/install notes.
@@ -165,11 +165,11 @@ move it between devices or recover after reinstalling.
 
 ### Reminder mode
 
-- [~] Decide whether Chronoplex should grow into a broader reminder/task app.
+- [~] Decide whether ZoneAnchor should grow into a broader reminder/task app.
 - [~] Possible additions: notes, completion, history, missed reminders,
       categories, and non-ringing notification reminders.
 
-Current leaning: Chronoplex should stay alarm-first for now, but the reference
+Current leaning: ZoneAnchor should stay alarm-first for now, but the reference
 clock + recurrence model is already reminder-shaped.
 
 ### Clock labels as durable references

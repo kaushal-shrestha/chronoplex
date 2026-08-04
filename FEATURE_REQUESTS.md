@@ -1,4 +1,4 @@
-# Chronoplex Feature Requests - Status Ledger
+# ZoneAnchor Feature Requests - Status Ledger
 
 This file captures user-facing product requests discussed so far and whether
 they have been implemented, remain open, or were deferred/cancelled.
@@ -14,7 +14,7 @@ Legend:
 
 - [x] Rename the app away from "Universal Clock" to avoid copyright/trademark
       risk.
-- [x] Use **Chronoplex** as the app name.
+- [x] Use **ZoneAnchor** as the app name.
 - [x] Keep the name clear enough that users understand the app is related to
       alarms and time zones.
 - [x] Add app icon/source artwork and an About dialog.
@@ -137,7 +137,7 @@ Legend:
 
 ## Still Open Product Questions
 
-- [ ] Should Chronoplex become a broader reminders app with notes/completion,
+- [ ] Should ZoneAnchor become a broader reminders app with notes/completion,
       or remain an alarm-first app with reminder-like power?
 - [ ] Should natural-language parsing be implemented locally with deterministic
       rules, through an AI parser, or both?

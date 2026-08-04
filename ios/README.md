@@ -1,6 +1,6 @@
-# Chronoplex iOS
+# ZoneAnchor iOS
 
-Native SwiftUI implementation of Chronoplex, created on branch `codex/ios` in the `worktrees/ios` worktree.
+Native SwiftUI implementation of ZoneAnchor, created on branch `codex/ios` in the `worktrees/ios` worktree.
 
 ## Implemented
 
@@ -20,6 +20,6 @@ Android exact alarms and full-screen lock-screen alarm activities do not have di
 ## Verify
 
 ```sh
-xcodebuild -project ios/Chronoplex.xcodeproj -scheme Chronoplex -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
-xcodebuild test -project ios/Chronoplex.xcodeproj -scheme Chronoplex -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' CODE_SIGNING_ALLOWED=NO
+xcodebuild -project ios/ZoneAnchor.xcodeproj -scheme ZoneAnchor -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
+xcodebuild test -project ios/ZoneAnchor.xcodeproj -scheme ZoneAnchor -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' CODE_SIGNING_ALLOWED=NO
 ```
