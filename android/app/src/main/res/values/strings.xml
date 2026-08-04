@@ -26,12 +26,18 @@
     <string name="zone_source_added">My clocks</string>
     <string name="zone_source_all">All zones</string>
     <string name="zone_source_settings">Default zone source for new alarms</string>
+    <string name="zone_source_added_description">Choose alarm zones from clocks you have added.</string>
+    <string name="zone_source_all_description">Choose alarm zones from every available time zone.</string>
     <string name="alarm_zone_display">Alarm zone display</string>
     <string name="alarm_zone_display_label">Clock label</string>
     <string name="alarm_zone_display_zone">Zone ID</string>
+    <string name="alarm_zone_display_label_description">Show the friendly clock label on alarms.</string>
+    <string name="alarm_zone_display_zone_description">Show the saved time zone identifier on alarms.</string>
     <string name="first_day_of_week">First day of week</string>
     <string name="day_monday">Monday</string>
     <string name="day_sunday">Sunday</string>
+    <string name="first_day_monday_description">Calendar and repeat views start on Monday.</string>
+    <string name="first_day_sunday_description">Calendar and repeat views start on Sunday.</string>
 
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>

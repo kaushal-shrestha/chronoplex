@@ -7,14 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -73,6 +70,51 @@ fun SettingsScreen(vm: SettingsViewModel) {
     var aboutOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var paletteOpen by remember { mutableStateOf(false) }
+    var zoneSourceOpen by remember { mutableStateOf(false) }
+    var alarmZoneDisplayOpen by remember { mutableStateOf(false) }
+    var firstDayOpen by remember { mutableStateOf(false) }
+    val paletteChoices = ThemePalette.values().map { palette ->
+        SettingsChoice(palette, palette.displayName, palette.description)
+    }
+    val zoneSourceChoices = listOf(
+        SettingsChoice(
+            AlarmZoneSource.ADDED_CLOCKS,
+            stringResource(R.string.zone_source_added),
+            stringResource(R.string.zone_source_added_description),
+        ),
+        SettingsChoice(
+            AlarmZoneSource.ALL_ZONES,
+            stringResource(R.string.zone_source_all),
+            stringResource(R.string.zone_source_all_description),
+        ),
+    )
+    val alarmZoneDisplayChoices = listOf(
+        SettingsChoice(
+            AlarmZoneDisplayMode.CLOCK_LABEL,
+            stringResource(R.string.alarm_zone_display_label),
+            stringResource(R.string.alarm_zone_display_label_description),
+        ),
+        SettingsChoice(
+            AlarmZoneDisplayMode.ZONE_ID,
+            stringResource(R.string.alarm_zone_display_zone),
+            stringResource(R.string.alarm_zone_display_zone_description),
+        ),
+    )
+    val firstDayChoices = listOf(
+        SettingsChoice(
+            DayOfWeek.MONDAY,
+            stringResource(R.string.day_monday),
+            stringResource(R.string.first_day_monday_description),
+        ),
+        SettingsChoice(
+            DayOfWeek.SUNDAY,
+            stringResource(R.string.day_sunday),
+            stringResource(R.string.first_day_sunday_description),
+        ),
+    )
+    val selectedZoneSource = zoneSourceChoices.selectedChoice(state.alarmZoneSource)
+    val selectedAlarmZoneDisplay = alarmZoneDisplayChoices.selectedChoice(state.alarmZoneDisplay)
+    val selectedFirstDay = firstDayChoices.selectedChoice(state.firstDayOfWeek)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -125,55 +167,27 @@ fun SettingsScreen(vm: SettingsViewModel) {
             }
             item {
                 SectionLabel(R.string.zone_source_settings)
-                Column {
-                    AlarmZoneSourceRow(
-                        label = stringResource(R.string.zone_source_added),
-                        selected = state.alarmZoneSource == AlarmZoneSource.ADDED_CLOCKS,
-                        onClick = { vm.setZoneSource(AlarmZoneSource.ADDED_CLOCKS) },
-                    )
-                    AlarmZoneSourceRow(
-                        label = stringResource(R.string.zone_source_all),
-                        selected = state.alarmZoneSource == AlarmZoneSource.ALL_ZONES,
-                        onClick = { vm.setZoneSource(AlarmZoneSource.ALL_ZONES) },
-                    )
-                }
+                PreferenceRow(
+                    title = selectedZoneSource.title,
+                    supportingText = selectedZoneSource.description,
+                    onClick = { zoneSourceOpen = true },
+                )
             }
             item {
                 SectionLabel(R.string.alarm_zone_display)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val options = listOf(AlarmZoneDisplayMode.CLOCK_LABEL, AlarmZoneDisplayMode.ZONE_ID)
-                    options.forEachIndexed { i, mode ->
-                        SegmentedButton(
-                            selected = state.alarmZoneDisplay == mode,
-                            onClick = rememberTapFeedback { vm.setAlarmZoneDisplay(mode) },
-                            shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                        ) {
-                            Text(when (mode) {
-                                AlarmZoneDisplayMode.CLOCK_LABEL -> stringResource(R.string.alarm_zone_display_label)
-                                AlarmZoneDisplayMode.ZONE_ID -> stringResource(R.string.alarm_zone_display_zone)
-                            })
-                        }
-                    }
-                }
+                PreferenceRow(
+                    title = selectedAlarmZoneDisplay.title,
+                    supportingText = selectedAlarmZoneDisplay.description,
+                    onClick = { alarmZoneDisplayOpen = true },
+                )
             }
             item {
                 SectionLabel(R.string.first_day_of_week)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val options = listOf(DayOfWeek.MONDAY, DayOfWeek.SUNDAY)
-                    options.forEachIndexed { i, d ->
-                        SegmentedButton(
-                            selected = state.firstDayOfWeek == d,
-                            onClick = rememberTapFeedback { vm.setFirstDayOfWeek(d) },
-                            shape = SegmentedButtonDefaults.itemShape(i, options.size),
-                        ) {
-                            Text(when (d) {
-                                DayOfWeek.MONDAY -> stringResource(R.string.day_monday)
-                                DayOfWeek.SUNDAY -> stringResource(R.string.day_sunday)
-                                else -> d.name
-                            })
-                        }
-                    }
-                }
+                PreferenceRow(
+                    title = selectedFirstDay.title,
+                    supportingText = selectedFirstDay.description,
+                    onClick = { firstDayOpen = true },
+                )
             }
             item {
                 SectionLabel(R.string.grouping_section)
@@ -205,36 +219,88 @@ fun SettingsScreen(vm: SettingsViewModel) {
         AboutDialog(onDismiss = { aboutOpen = false })
     }
     if (paletteOpen) {
-        PaletteDialog(
+        SettingsChoiceDialog(
+            title = stringResource(R.string.theme_palette),
+            options = paletteChoices,
             selected = state.palette,
             onSelect = { palette ->
                 vm.setPalette(palette)
                 paletteOpen = false
             },
             onDismiss = { paletteOpen = false },
+            trailingContent = { option -> PalettePreview(option.value) },
+        )
+    }
+    if (zoneSourceOpen) {
+        SettingsChoiceDialog(
+            title = stringResource(R.string.zone_source_settings),
+            options = zoneSourceChoices,
+            selected = state.alarmZoneSource,
+            onSelect = { source ->
+                vm.setZoneSource(source)
+                zoneSourceOpen = false
+            },
+            onDismiss = { zoneSourceOpen = false },
+        )
+    }
+    if (alarmZoneDisplayOpen) {
+        SettingsChoiceDialog(
+            title = stringResource(R.string.alarm_zone_display),
+            options = alarmZoneDisplayChoices,
+            selected = state.alarmZoneDisplay,
+            onSelect = { display ->
+                vm.setAlarmZoneDisplay(display)
+                alarmZoneDisplayOpen = false
+            },
+            onDismiss = { alarmZoneDisplayOpen = false },
+        )
+    }
+    if (firstDayOpen) {
+        SettingsChoiceDialog(
+            title = stringResource(R.string.first_day_of_week),
+            options = firstDayChoices,
+            selected = state.firstDayOfWeek,
+            onSelect = { day ->
+                vm.setFirstDayOfWeek(day)
+                firstDayOpen = false
+            },
+            onDismiss = { firstDayOpen = false },
         )
     }
 }
 
+private data class SettingsChoice<T>(
+    val value: T,
+    val title: String,
+    val description: String,
+)
+
+private fun <T> List<SettingsChoice<T>>.selectedChoice(value: T): SettingsChoice<T> =
+    first { it.value == value }
+
 @Composable
-private fun PaletteDialog(
-    selected: ThemePalette,
-    onSelect: (ThemePalette) -> Unit,
+private fun <T> SettingsChoiceDialog(
+    title: String,
+    options: List<SettingsChoice<T>>,
+    selected: T,
+    onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
+    trailingContent: (@Composable (SettingsChoice<T>) -> Unit)? = null,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.theme_palette)) },
+        title = { Text(title) },
         text = {
             LazyColumn(
                 modifier = Modifier.heightIn(max = 420.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(ThemePalette.values()) { palette ->
-                    PaletteChoiceRow(
-                        palette = palette,
-                        selected = selected == palette,
-                        onClick = { onSelect(palette) },
+                items(options) { option ->
+                    SettingsChoiceRow(
+                        option = option,
+                        selected = selected == option.value,
+                        onClick = { onSelect(option.value) },
+                        trailingContent = trailingContent,
                     )
                 }
             }
@@ -248,10 +314,11 @@ private fun PaletteDialog(
 }
 
 @Composable
-private fun PaletteChoiceRow(
-    palette: ThemePalette,
+private fun <T> SettingsChoiceRow(
+    option: SettingsChoice<T>,
     selected: Boolean,
     onClick: () -> Unit,
+    trailingContent: (@Composable (SettingsChoice<T>) -> Unit)?,
 ) {
     Row(
         modifier = Modifier
@@ -267,14 +334,16 @@ private fun PaletteChoiceRow(
                 .weight(1f)
                 .padding(horizontal = 8.dp),
         ) {
-            Text(palette.displayName, style = MaterialTheme.typography.bodyLarge)
+            Text(option.title, style = MaterialTheme.typography.bodyLarge)
             Text(
-                palette.description,
+                option.description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        PalettePreview(palette)
+        if (trailingContent != null) {
+            trailingContent(option)
+        }
     }
 }
 
@@ -375,25 +444,10 @@ private fun GroupingToggleRow(label: String, checked: Boolean, onCheckedChange: 
 }
 
 @Composable
-private fun AlarmZoneSourceRow(label: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .tappable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = rememberTapFeedback(onClick))
-        Spacer(Modifier.width(8.dp))
-        Text(label, modifier = Modifier.padding(start = 8.dp))
-    }
-}
-
-@Composable
 private fun PreferenceRow(
     title: String,
     supportingText: String,
-    leading: @Composable () -> Unit,
+    leading: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(24.dp)
