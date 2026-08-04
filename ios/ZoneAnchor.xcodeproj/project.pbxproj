@@ -19,6 +19,7 @@
 		10000000000000000000010A /* StopwatchesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000A /* StopwatchesView.swift */; };
 		10000000000000000000010B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000B /* SettingsView.swift */; };
 		10000000000000000000010C /* AlarmMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000D /* AlarmMathTests.swift */; };
+		10000000000000000000010D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000E /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,6 +46,7 @@
 		10000000000000000000000B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		10000000000000000000000C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		10000000000000000000000D /* AlarmMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmMathTests.swift; sourceTree = "<group>"; };
+		10000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		100000000000000000000501 /* ZoneAnchor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZoneAnchor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		100000000000000000000502 /* ZoneAnchorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ZoneAnchorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -79,6 +81,7 @@
 				10000000000000000000000A /* StopwatchesView.swift */,
 				10000000000000000000000B /* SettingsView.swift */,
 				10000000000000000000000C /* Info.plist */,
+				10000000000000000000000E /* Assets.xcassets */,
 			);
 			path = ZoneAnchor;
 			sourceTree = "<group>";
@@ -174,7 +177,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		100000000000000000000A01 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		100000000000000000000A01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				10000000000000000000010D /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		100000000000000000000A02 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
