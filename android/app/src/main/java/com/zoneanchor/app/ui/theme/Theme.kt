@@ -17,33 +17,120 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.zoneanchor.app.domain.AppearanceMode
 import com.zoneanchor.app.domain.ThemePalette
+import kotlin.math.pow
 
 private data class PaletteSpec(
     val light: ColorScheme,
     val dark: ColorScheme,
 )
 
-private fun palette(primary: Color, secondary: Color, tertiary: Color): PaletteSpec {
+private fun palette(
+    primary: Color,
+    secondary: Color,
+    tertiary: Color,
+    surfaceTint: Color = tertiary,
+): PaletteSpec {
+    val lightSurface = surfaceTint.blendWith(Color.White, 0.93f)
+    val lightSurfaceVariant = surfaceTint.blendWith(Color(0xFFDDE5EA), 0.56f)
+    val lightSurfaceContainer = surfaceTint.blendWith(Color.White, 0.86f)
+    val lightSurfaceContainerHigh = surfaceTint.blendWith(Color.White, 0.80f)
+    val darkSurface = primary.blendWith(Color(0xFF111820), 0.84f)
+    val darkSurfaceVariant = primary.blendWith(Color(0xFF27323C), 0.68f)
+    val darkSurfaceContainer = primary.blendWith(Color(0xFF17212A), 0.76f)
+    val darkSurfaceContainerHigh = primary.blendWith(Color(0xFF1E2A35), 0.70f)
+
     val light = lightColorScheme(
         primary = primary,
+        onPrimary = primary.contentColor(),
+        primaryContainer = primary.blendWith(Color.White, 0.80f),
+        onPrimaryContainer = primary.darken(0.56f),
+        inversePrimary = primary.lighten(0.42f),
         secondary = secondary,
+        onSecondary = secondary.contentColor(),
+        secondaryContainer = secondary.blendWith(Color.White, 0.76f),
+        onSecondaryContainer = secondary.darken(0.58f),
         tertiary = tertiary,
+        onTertiary = tertiary.contentColor(),
+        tertiaryContainer = tertiary.blendWith(Color.White, 0.68f),
+        onTertiaryContainer = tertiary.darken(0.62f),
+        background = lightSurface,
+        onBackground = Color(0xFF181C20),
+        surface = lightSurface,
+        onSurface = Color(0xFF181C20),
+        surfaceVariant = lightSurfaceVariant,
+        onSurfaceVariant = Color(0xFF4C525B),
+        surfaceTint = primary,
+        inverseSurface = Color(0xFF2D3136),
+        inverseOnSurface = Color(0xFFF2F4F7),
+        outline = Color(0xFF7B818A),
+        outlineVariant = lightSurfaceVariant.darken(0.10f),
+        surfaceBright = lightSurface.blendWith(Color.White, 0.54f),
+        surfaceContainerLowest = Color.White,
+        surfaceContainerLow = lightSurfaceContainer.blendWith(Color.White, 0.28f),
+        surfaceContainer = lightSurfaceContainer,
+        surfaceContainerHigh = lightSurfaceContainerHigh,
+        surfaceContainerHighest = lightSurfaceContainerHigh.darken(0.035f),
     )
     val dark = darkColorScheme(
-        primary = primary.lighten(0.25f),
-        secondary = secondary.lighten(0.2f),
-        tertiary = tertiary.lighten(0.2f),
+        primary = primary.lighten(0.38f),
+        onPrimary = primary.lighten(0.38f).contentColor(),
+        primaryContainer = primary.darken(0.18f),
+        onPrimaryContainer = primary.lighten(0.82f),
+        inversePrimary = primary,
+        secondary = secondary.lighten(0.22f),
+        onSecondary = secondary.lighten(0.22f).contentColor(),
+        secondaryContainer = secondary.darken(0.26f),
+        onSecondaryContainer = secondary.lighten(0.80f),
+        tertiary = tertiary.lighten(0.14f),
+        onTertiary = tertiary.lighten(0.14f).contentColor(),
+        tertiaryContainer = tertiary.darken(0.34f),
+        onTertiaryContainer = tertiary.lighten(0.70f),
+        background = darkSurface,
+        onBackground = Color(0xFFE7ECF2),
+        surface = darkSurface,
+        onSurface = Color(0xFFE7ECF2),
+        surfaceVariant = darkSurfaceVariant,
+        onSurfaceVariant = Color(0xFFC1CBD6),
+        surfaceTint = primary.lighten(0.38f),
+        inverseSurface = Color(0xFFE7ECF2),
+        inverseOnSurface = Color(0xFF20252A),
+        outline = Color(0xFF8D98A4),
+        outlineVariant = darkSurfaceVariant.lighten(0.08f),
+        surfaceDim = darkSurface.darken(0.12f),
+        surfaceContainerLowest = darkSurface.darken(0.20f),
+        surfaceContainerLow = darkSurfaceContainer.darken(0.05f),
+        surfaceContainer = darkSurfaceContainer,
+        surfaceContainerHigh = darkSurfaceContainerHigh,
+        surfaceContainerHighest = darkSurfaceContainerHigh.lighten(0.05f),
     )
     return PaletteSpec(light, dark)
 }
 
-private fun Color.lighten(amount: Float): Color {
+private fun Color.blendWith(other: Color, amount: Float): Color {
+    val weight = amount.coerceIn(0f, 1f)
     return Color(
-        red = (red + (1f - red) * amount).coerceIn(0f, 1f),
-        green = (green + (1f - green) * amount).coerceIn(0f, 1f),
-        blue = (blue + (1f - blue) * amount).coerceIn(0f, 1f),
-        alpha = alpha,
+        red = red + (other.red - red) * weight,
+        green = green + (other.green - green) * weight,
+        blue = blue + (other.blue - blue) * weight,
+        alpha = alpha + (other.alpha - alpha) * weight,
     )
+}
+
+private fun Color.lighten(amount: Float): Color {
+    return blendWith(Color.White, amount)
+}
+
+private fun Color.darken(amount: Float): Color {
+    return blendWith(Color.Black, amount)
+}
+
+private fun Color.contentColor(): Color =
+    if (relativeLuminance() > 0.48f) Color(0xFF161A1F) else Color.White
+
+private fun Color.relativeLuminance(): Float {
+    fun channel(value: Float): Float =
+        if (value <= 0.03928f) value / 12.92f else ((value + 0.055f) / 1.055f).pow(2.4f)
+    return 0.2126f * channel(red) + 0.7152f * channel(green) + 0.0722f * channel(blue)
 }
 
 private val palettes: Map<ThemePalette, PaletteSpec> = mapOf(
