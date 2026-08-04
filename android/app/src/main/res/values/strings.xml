@@ -221,7 +221,9 @@
     <!-- Backup -->
     <string name="backup_section">Backup</string>
     <string name="export_backup">Export</string>
+    <string name="export_backup_description">Save clocks, alarms, timers, stopwatches, and settings.</string>
     <string name="import_backup">Import</string>
+    <string name="import_backup_description">Restore from a JSON backup file.</string>
 
     <!-- Stopwatches -->
     <string name="tab_stopwatches">Stopwatch</string>
