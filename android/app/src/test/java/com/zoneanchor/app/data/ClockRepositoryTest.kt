@@ -50,6 +50,43 @@ class ClockRepositoryTest {
         assertThat(dao.groups).isEmpty()
     }
 
+    @Test
+    fun `existing clock update keeps id and delete paths remove rows`(): Unit = runBlocking {
+        val id = repository.upsert(Clock(label = "NYC", zoneId = "America/New_York"))
+        val returnedId = repository.upsert(Clock(id = id, label = "  New York  ", zoneId = "America/New_York"))
+        val other = repository.upsert(Clock(label = "UTC", zoneId = "UTC"))
+
+        assertThat(returnedId).isEqualTo(id)
+        assertThat(repository.getAll().first { it.id == id }.label).isEqualTo("New York")
+
+        repository.delete(other)
+
+        assertThat(repository.getAll().map { it.id }).containsExactly(id)
+
+        repository.deleteAll()
+
+        assertThat(repository.getAll()).isEmpty()
+    }
+
+    @Test
+    fun `group edits can rename collapse and reorder while ignoring missing groups`(): Unit = runBlocking {
+        val home = repository.createGroup("  Home  ")
+        val travel = repository.createGroup("Travel")
+
+        repository.renameGroup(404L, "Missing")
+        repository.setCollapsed(404L, true)
+        repository.renameGroup(home, "")
+        repository.renameGroup(travel, "  Trips  ")
+        repository.setCollapsed(home, true)
+        repository.reorderGroups(listOf(travel, home))
+
+        assertThat(dao.groups.map { it.id }).containsExactly(travel, home).inOrder()
+        assertThat(repository.observeGroups().first().map { it.id }).containsExactly(travel, home).inOrder()
+        assertThat(dao.groups.first { it.id == home }.name).isEqualTo("Home")
+        assertThat(dao.groups.first { it.id == travel }.name).isEqualTo("Trips")
+        assertThat(dao.groups.first { it.id == home }.collapsed).isTrue()
+    }
+
     private class FakeClockDao : ClockDao {
         private var nextId = 1L
         private val rowsState = MutableStateFlow<List<ClockEntity>>(emptyList())

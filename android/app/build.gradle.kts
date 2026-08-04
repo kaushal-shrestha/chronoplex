@@ -1,10 +1,14 @@
 import java.util.Properties
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+    id("jacoco")
 }
 
 val appVersionName = "0.1.0"
@@ -123,4 +127,91 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.truth:truth:1.4.4")
+}
+
+jacoco {
+    toolVersion = "0.8.13"
+}
+
+tasks.withType<Test>().configureEach {
+    extensions.configure<JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+
+val zoneAnchorCoverageIncludes = listOf(
+    "com/zoneanchor/app/alarm/AlarmScheduler\$Companion*",
+    "com/zoneanchor/app/data/AlarmRepository*",
+    "com/zoneanchor/app/data/ClockRepository*",
+    "com/zoneanchor/app/data/StopwatchRepository*",
+    "com/zoneanchor/app/data/TimerRepository*",
+    "com/zoneanchor/app/data/db/*Entity*",
+    "com/zoneanchor/app/domain/**",
+    "com/zoneanchor/app/ui/TimeZones*",
+)
+
+// The report includes alarm trigger math; the strict 100% gate excludes its
+// defensive null exits that sanitized app inputs cannot reach.
+val zoneAnchorStrictCoverageIncludes = zoneAnchorCoverageIncludes -
+    "com/zoneanchor/app/alarm/AlarmScheduler\$Companion*"
+
+val zoneAnchorCoverageExcludes = listOf(
+    "**/*\$WhenMappings*",
+)
+
+fun zoneAnchorCoverageClasses(includes: List<String> = zoneAnchorCoverageIncludes) =
+    fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+        include(includes)
+        exclude(zoneAnchorCoverageExcludes)
+    }
+
+tasks.register<JacocoReport>("zoneAnchorCoverageReport") {
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    sourceDirectories.setFrom(files("src/main/java"))
+    classDirectories.setFrom(zoneAnchorCoverageClasses())
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include(
+                "jacoco/testDebugUnitTest.exec",
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+            )
+        }
+    )
+}
+
+tasks.register<JacocoCoverageVerification>("zoneAnchorCoverageVerification") {
+    dependsOn("testDebugUnitTest")
+
+    sourceDirectories.setFrom(files("src/main/java"))
+    classDirectories.setFrom(zoneAnchorCoverageClasses(zoneAnchorStrictCoverageIncludes))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include(
+                "jacoco/testDebugUnitTest.exec",
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+            )
+        }
+    )
+
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "1.0".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.register("checkZoneAnchorCoverage") {
+    dependsOn("zoneAnchorCoverageReport", "zoneAnchorCoverageVerification")
 }

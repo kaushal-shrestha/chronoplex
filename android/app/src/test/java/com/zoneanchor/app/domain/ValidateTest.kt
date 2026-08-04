@@ -2,6 +2,7 @@ package com.zoneanchor.app.domain
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import java.time.DayOfWeek
 import java.time.ZoneId
 
 class ValidateTest {
@@ -36,5 +37,37 @@ class ValidateTest {
         assertThat(Validate.daysMask(0)).isEqualTo(0)
         assertThat(Validate.daysMask(0b11111111)).isEqualTo(0b01111111) // bit 7 stripped
         assertThat(Validate.daysMask(DayMask.WEEKDAYS)).isEqualTo(DayMask.WEEKDAYS)
+    }
+
+    @Test fun `repeat type defaults from sanitized day mask`() {
+        assertThat(Validate.repeatType(null, 0)).isEqualTo(AlarmRepeatType.ONCE)
+        assertThat(Validate.repeatType(null, DayMask.WEEKDAYS)).isEqualTo(AlarmRepeatType.WEEKLY)
+        assertThat(Validate.repeatType(AlarmRepeatType.MONTHLY_DAY, 0)).isEqualTo(AlarmRepeatType.MONTHLY_DAY)
+        assertThat(Validate.repeatType(null, 1 shl 12)).isEqualTo(AlarmRepeatType.ONCE)
+    }
+
+    @Test fun `repeat interval and date fields are clamped or dropped`() {
+        assertThat(Validate.repeatInterval(-10)).isEqualTo(1)
+        assertThat(Validate.repeatInterval(1)).isEqualTo(1)
+        assertThat(Validate.repeatInterval(500)).isEqualTo(99)
+
+        assertThat(Validate.repeatStartDate("2026-08-03")).isEqualTo("2026-08-03")
+        assertThat(Validate.repeatStartDate("08/03/2026")).isEmpty()
+        assertThat(Validate.repeatStartDate(null)).isEmpty()
+    }
+
+    @Test fun `monthly recurrence fields are clamped to valid controls`() {
+        assertThat(Validate.monthlyDay(-1)).isEqualTo(1)
+        assertThat(Validate.monthlyDay(15)).isEqualTo(15)
+        assertThat(Validate.monthlyDay(80)).isEqualTo(31)
+
+        assertThat(Validate.monthlyOrdinal(-1)).isEqualTo(-1)
+        assertThat(Validate.monthlyOrdinal(0)).isEqualTo(1)
+        assertThat(Validate.monthlyOrdinal(3)).isEqualTo(3)
+        assertThat(Validate.monthlyOrdinal(99)).isEqualTo(4)
+
+        assertThat(Validate.monthlyWeekday(-1)).isEqualTo(DayOfWeek.MONDAY.value)
+        assertThat(Validate.monthlyWeekday(DayOfWeek.THURSDAY.value)).isEqualTo(DayOfWeek.THURSDAY.value)
+        assertThat(Validate.monthlyWeekday(99)).isEqualTo(DayOfWeek.SUNDAY.value)
     }
 }

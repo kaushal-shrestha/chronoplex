@@ -164,6 +164,120 @@ class AlarmSchedulerNextTriggerTest {
         assertThat(next).isEqualTo(expected)
     }
 
+    @Test fun `weekly alarm with only garbage high bits has no valid trigger`() {
+        val now = nowAtNyc(2026, 1, 17, 9, 0)
+        val alarm = alarm(hour = 8, minute = 0, days = emptySet())
+            .copy(daysMask = 1 shl 12, repeatType = AlarmRepeatType.WEEKLY)
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        assertThat(next).isNull()
+    }
+
+    @Test fun `weekly repeat waits for a future start date before using selected days`() {
+        val now = nowAtNyc(2026, 8, 1, 9, 0)
+        val alarm = alarm(hour = 11, minute = 15, days = setOf(DayOfWeek.FRIDAY))
+            .copy(repeatStartDate = "2026-08-12")
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 8, 14, 11, 15, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `weekly repeat uses today as anchor when start date is invalid`() {
+        val now = nowAtNyc(2026, 8, 3, 9, 0)
+        val alarm = alarm(hour = 8, minute = 0, days = setOf(DayOfWeek.SUNDAY))
+            .copy(repeatInterval = 2, repeatStartDate = "not-a-date")
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 8, 9, 8, 0, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `monthly day repeat advances when this month has already passed`() {
+        val now = nowAtNyc(2026, 1, 15, 10, 0)
+        val alarm = alarm(hour = 9, minute = 0, days = DayOfWeek.values().toSet())
+            .copy(
+                repeatType = AlarmRepeatType.MONTHLY_DAY,
+                repeatStartDate = "2026-01-01",
+                monthlyDay = 15,
+            )
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 2, 15, 9, 0, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `monthly day repeat clamps impossible saved days before scheduling`() {
+        val now = nowAtNyc(2026, 1, 1, 9, 0)
+        val alarm = alarm(hour = 7, minute = 45, days = DayOfWeek.values().toSet())
+            .copy(
+                repeatType = AlarmRepeatType.MONTHLY_DAY,
+                repeatStartDate = "2026-01-01",
+                monthlyDay = 80,
+            )
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 1, 31, 7, 45, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `monthly weekday repeat supports the last selected weekday`() {
+        val now = nowAtNyc(2026, 7, 1, 9, 0)
+        val alarm = alarm(hour = 6, minute = 30, days = DayOfWeek.values().toSet())
+            .copy(
+                repeatType = AlarmRepeatType.MONTHLY_WEEKDAY,
+                repeatStartDate = "2026-07-01",
+                monthlyOrdinal = -1,
+                monthlyWeekday = DayOfWeek.FRIDAY.value,
+            )
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 7, 31, 6, 30, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `monthly weekday repeat clamps corrupt ordinal and weekday values`() {
+        val now = nowAtNyc(2026, 7, 1, 9, 0)
+        val alarm = alarm(hour = 6, minute = 30, days = DayOfWeek.values().toSet())
+            .copy(
+                repeatType = AlarmRepeatType.MONTHLY_WEEKDAY,
+                repeatStartDate = "2026-07-01",
+                monthlyOrdinal = 99,
+                monthlyWeekday = 99,
+            )
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 7, 26, 6, 30, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `spring-forward gap on the only selected day waits for the next selected week`() {
+        val now = nowAtNyc(2026, 3, 8, 1, 0)
+        val alarm = alarm(hour = 2, minute = 30, days = setOf(DayOfWeek.SUNDAY))
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 3, 15, 2, 30, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
+    @Test fun `fall-back day does not use the second repeated occurrence after the first has passed`() {
+        val now = ZonedDateTime.of(2026, 11, 1, 1, 45, 0, 0, nyc).toInstant().toEpochMilli()
+        val alarm = alarm(hour = 1, minute = 30, days = DayOfWeek.values().toSet())
+
+        val next = AlarmScheduler.nextTriggerMillis(alarm, now)
+
+        val expected = ZonedDateTime.of(2026, 11, 2, 1, 30, 0, 0, nyc).toInstant().toEpochMilli()
+        assertThat(next).isEqualTo(expected)
+    }
+
     private fun alarm(
         hour: Int,
         minute: Int,
