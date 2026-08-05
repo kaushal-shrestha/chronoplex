@@ -131,12 +131,18 @@ class TimerService : Service() {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(text)
+            .setTicker(title)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setOngoing(true)
             .setAutoCancel(false)
             .setOnlyAlertOnce(true)
+            .setLocalOnly(true)
+            .setShowWhen(true)
+            .setWhen(System.currentTimeMillis())
+            .setSilent(false)
             .setContentIntent(contentPi)
             .addAction(0, getString(R.string.add_minute), action(timerId, TimerReceiver.ACTION_ADD_MINUTE, 1))
             .addAction(0, getString(R.string.stop), action(timerId, TimerReceiver.ACTION_DISMISS, 2))
@@ -229,9 +235,11 @@ class TimerService : Service() {
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = getString(R.string.timer_channel_description)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 setBypassDnd(true)
                 setSound(null, null)
-                enableVibration(false)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 600, 400, 600)
             }
         )
     }
@@ -255,7 +263,7 @@ class TimerService : Service() {
         const val ACTION_START = "com.zoneanchor.app.timer.service.START"
         const val ACTION_STOP = "com.zoneanchor.app.timer.service.STOP"
         const val EXTRA_TIMER_ID = "extra_timer_id"
-        private const val CHANNEL_ID = "timer_alerts_v2"
+        private const val CHANNEL_ID = "timer_alerts_v3"
 
         fun start(context: Context, timerId: Long) {
             val intent = Intent(context, TimerService::class.java).apply {

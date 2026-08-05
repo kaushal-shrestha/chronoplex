@@ -60,6 +60,7 @@ enum NotificationScheduler {
         content.userInfo = ["timerId": timer.id]
         if #available(iOS 15.0, *) {
             content.interruptionLevel = .timeSensitive
+            content.relevanceScore = 1.0
         }
         let interval = max(1, TimeInterval(endsAtMillis - Date.millis) / 1000)
         let request = UNNotificationRequest(
@@ -83,6 +84,7 @@ enum NotificationScheduler {
         content.userInfo = ["alarmId": alarm.id]
         if #available(iOS 15.0, *) {
             content.interruptionLevel = .timeSensitive
+            content.relevanceScore = 1.0
         }
         let interval = max(1, TimeInterval(fireMillis - Date.millis) / 1000)
         let request = UNNotificationRequest(
