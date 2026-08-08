@@ -9,6 +9,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,8 +19,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.Button
@@ -37,10 +43,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
@@ -165,71 +172,132 @@ private fun AlarmScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(32.dp),
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 28.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
         ) {
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.AccessTime,
-                        contentDescription = null,
-                        modifier = Modifier.size(72.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.height(24.dp))
-                    val now = remember { mutableStateOf(ZonedDateTime.now()) }
-                    LaunchedEffect(alarm?.zoneId) {
-                        while (true) {
-                            now.value = if (alarm != null) ZonedDateTime.now(ZoneId.of(alarm.zoneId)) else ZonedDateTime.now()
-                            delay(1000)
-                        }
-                    }
-                    val fmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
-                    Text(
-                        fmt.format(now.value),
-                        fontSize = 64.sp,
-                        fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    if (alarm != null) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            alarm.zoneId,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        if (alarm.label.isNotBlank()) {
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                alarm.label,
-                                fontSize = 22.sp,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                    }
-                }
+            Spacer(Modifier.weight(0.42f))
+            AlarmIdentity(alarm = alarm)
+            Spacer(Modifier.weight(0.58f))
+            AlarmActions(onDismiss = onDismiss, onSnooze = onSnooze)
+        }
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun AlarmIdentity(alarm: Alarm?) {
+    val now = remember { mutableStateOf(ZonedDateTime.now()) }
+    LaunchedEffect(alarm?.zoneId) {
+        while (true) {
+            now.value = if (alarm != null) ZonedDateTime.now(ZoneId.of(alarm.zoneId)) else ZonedDateTime.now()
+            delay(1000)
+        }
+    }
+    val timeFormat = remember { DateTimeFormatter.ofPattern("h:mm a") }
+    val dateFormat = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Surface(
+                modifier = Modifier.size(116.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)),
+            ) {}
+            Icon(
+                Icons.Default.AccessTime,
+                contentDescription = null,
+                modifier = Modifier.size(62.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Spacer(Modifier.height(30.dp))
+        Text(
+            text = timeFormat.format(now.value),
+            fontSize = 72.sp,
+            lineHeight = 76.sp,
+            fontWeight = FontWeight.Light,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = alarm?.zoneId ?: dateFormat.format(now.value),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        alarm?.label
+            ?.takeIf { it.isNotBlank() }
+            ?.let { label ->
+                Spacer(Modifier.height(18.dp))
+                Text(
+                    text = label,
+                    fontSize = 26.sp,
+                    lineHeight = 32.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun AlarmActions(
+    onDismiss: () -> Unit,
+    onSnooze: (Int) -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 520.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.74f),
+        shape = RoundedCornerShape(32.dp),
+        tonalElevation = 6.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text(
                 stringResource(R.string.snooze_for),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                modifier = Modifier.padding(bottom = 10.dp),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 listOf(1, 5, 10).forEach { mins ->
                     OutlinedButton(
                         onClick = { onSnooze(mins) },
-                        modifier = Modifier.weight(1f).height(56.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        ),
                     ) { Text(stringResource(R.string.snooze_minutes, mins)) }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
             Button(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth().height(64.dp).padding(vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -238,4 +306,3 @@ private fun AlarmScreen(
         }
     }
 }
-
