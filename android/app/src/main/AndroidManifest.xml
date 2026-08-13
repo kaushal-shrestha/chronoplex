@@ -47,6 +47,16 @@
             android:taskAffinity=""
             android:theme="@style/Theme.ZoneAnchor.Alarm" />
 
+        <activity
+            android:name=".timer.TimerAlertActivity"
+            android:exported="false"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:theme="@style/Theme.ZoneAnchor.Alarm" />
+
         <receiver
             android:name=".alarm.AlarmReceiver"
             android:exported="false" />

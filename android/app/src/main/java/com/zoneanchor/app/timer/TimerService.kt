@@ -19,7 +19,6 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.zoneanchor.app.ZoneAnchorApp
-import com.zoneanchor.app.MainActivity
 import com.zoneanchor.app.R
 import com.zoneanchor.app.domain.Timer
 import com.zoneanchor.app.domain.TimerState
@@ -70,6 +69,7 @@ class TimerService : Service() {
                 return@launch
             }
             postNotification(timerId = timerId, timer = timer)
+            launchFullScreen(timerId)
         }
     }
 
@@ -118,16 +118,18 @@ class TimerService : Service() {
             ?: getString(R.string.timer_finished_default_title)
         val text = getString(R.string.timer_finished_body)
 
-        val contentPi = PendingIntent.getActivity(
+        val alertIntent = Intent(this, TimerAlertActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(TimerAlertActivity.EXTRA_TIMER_ID, timerId)
+            data = android.net.Uri.parse("zoneanchor://timer/$timerId/alert")
+        }
+
+        val alertPi = PendingIntent.getActivity(
             this,
             timerId.toInt(),
-            Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra(MainActivity.EXTRA_OPEN_TIMER_ID, timerId)
-                data = android.net.Uri.parse("zoneanchor://timer/$timerId/open")
-            },
+            alertIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
@@ -147,11 +149,20 @@ class TimerService : Service() {
             .setShowWhen(true)
             .setWhen(System.currentTimeMillis())
             .setSilent(false)
-            .setContentIntent(contentPi)
+            .setFullScreenIntent(alertPi, true)
+            .setContentIntent(alertPi)
             .addAction(0, getString(R.string.add_minute), action(timerId, TimerReceiver.ACTION_ADD_MINUTE, 1))
             .addAction(0, getString(R.string.add_five_minutes), action(timerId, TimerReceiver.ACTION_ADD_FIVE_MINUTES, 2))
             .addAction(0, getString(R.string.stop), action(timerId, TimerReceiver.ACTION_DISMISS, 3))
             .build()
+    }
+
+    private fun launchFullScreen(timerId: Long) {
+        val intent = Intent(this, TimerAlertActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(TimerAlertActivity.EXTRA_TIMER_ID, timerId)
+        }
+        runCatching { startActivity(intent) }
     }
 
     private fun action(timerId: Long, action: String, salt: Int): PendingIntent {
