@@ -28,6 +28,7 @@ class TimersViewModel(private val container: AppContainer) : ViewModel() {
     fun reset(timer: Timer) = viewModelScope.launch { container.timerScheduler.reset(timer) }
     fun dismiss(timer: Timer) = viewModelScope.launch { container.timerScheduler.dismiss(timer) }
     fun addMinute(timer: Timer) = viewModelScope.launch { container.timerScheduler.addMinute(timer) }
+    fun addMinutes(timer: Timer, minutes: Int) = viewModelScope.launch { container.timerScheduler.addMinutes(timer, minutes) }
 
     fun delete(timer: Timer) = viewModelScope.launch {
         container.timerScheduler.reset(timer)

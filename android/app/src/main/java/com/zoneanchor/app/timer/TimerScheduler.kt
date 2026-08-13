@@ -67,11 +67,13 @@ class TimerScheduler(private val context: Context) {
         )
     }
 
-    /** Extend a running or finished timer by 60 seconds. */
-    suspend fun addMinute(timer: Timer) {
+    /** Extend a running or finished timer by [minutes]. */
+    suspend fun addMinutes(timer: Timer, minutes: Int) {
+        if (minutes <= 0) return
+        val extensionMillis = minutes * 60_000L
         val newEnd = when (timer.state) {
-            TimerState.RUNNING -> (timer.endsAtMillis ?: System.currentTimeMillis()) + 60_000L
-            TimerState.FINISHED -> System.currentTimeMillis() + 60_000L
+            TimerState.RUNNING -> (timer.endsAtMillis ?: System.currentTimeMillis()) + extensionMillis
+            TimerState.FINISHED -> System.currentTimeMillis() + extensionMillis
             TimerState.PAUSED, TimerState.IDLE -> return
         }
         scheduleAt(timer.id, newEnd)
@@ -82,6 +84,11 @@ class TimerScheduler(private val context: Context) {
             endsAtMillis = newEnd,
             pausedRemainingMillis = null,
         )
+    }
+
+    /** Extend a running or finished timer by 60 seconds. */
+    suspend fun addMinute(timer: Timer) {
+        addMinutes(timer, minutes = 1)
     }
 
     /** Called from [TimerReceiver] when the OS fires the trigger. */

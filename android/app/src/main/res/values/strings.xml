@@ -179,6 +179,11 @@
     <string name="resume">Resume</string>
     <string name="stop">Stop</string>
     <string name="add_minute">+1 min</string>
+    <string name="add_five_minutes">+5 min</string>
+    <string name="timer_alert_title">Timer ringing</string>
+    <string name="timer_alert_body">Stop the alert or add more time.</string>
+    <string name="timer_alert_multiple">%1$d timers are ringing. Stop this one or add more time.</string>
+    <string name="timer_ringing_now">Ringing now</string>
     <string name="timer_finish_mode">Finish behavior</string>
     <string name="timer_finish_mode_notification">Notification</string>
     <string name="timer_finish_mode_full_screen">Full-screen</string>

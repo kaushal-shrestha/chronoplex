@@ -28,6 +28,10 @@ class TimerReceiver : BroadcastReceiver() {
                         val t = app.container.timerRepo.getById(timerId) ?: return@launch
                         app.container.timerScheduler.addMinute(t)
                     }
+                    ACTION_ADD_FIVE_MINUTES -> {
+                        val t = app.container.timerRepo.getById(timerId) ?: return@launch
+                        app.container.timerScheduler.addMinutes(t, minutes = 5)
+                    }
                 }
             } finally {
                 pending.finish()
@@ -39,6 +43,7 @@ class TimerReceiver : BroadcastReceiver() {
         const val ACTION_FIRE = "com.zoneanchor.app.timer.action.FIRE"
         const val ACTION_DISMISS = "com.zoneanchor.app.timer.action.DISMISS"
         const val ACTION_ADD_MINUTE = "com.zoneanchor.app.timer.action.ADD_MINUTE"
+        const val ACTION_ADD_FIVE_MINUTES = "com.zoneanchor.app.timer.action.ADD_FIVE_MINUTES"
         const val EXTRA_TIMER_ID = "extra_timer_id"
     }
 }

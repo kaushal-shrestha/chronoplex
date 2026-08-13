@@ -37,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,6 +73,7 @@ object Routes {
 fun AppRoot(
     container: AppContainer,
     onOpenExactAlarmSettings: () -> Unit,
+    openTimerId: Long? = null,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -81,6 +83,11 @@ fun AppRoot(
 
     val tabRoutes = setOf(Routes.CLOCKS, Routes.ALARMS, Routes.TIMERS, Routes.STOPWATCHES, Routes.SETTINGS)
     val showBottomBar = currentRoute in tabRoutes
+    LaunchedEffect(openTimerId) {
+        if (openTimerId != null) {
+            navigateTab(nav, Routes.TIMERS)
+        }
+    }
 
     Scaffold(
         // Each child screen has its own Scaffold + TopAppBar, which handles the
@@ -128,7 +135,7 @@ fun AppRoot(
     ) { padding ->
         NavHost(
             navController = nav,
-            startDestination = Routes.CLOCKS,
+            startDestination = if (openTimerId != null) Routes.TIMERS else Routes.CLOCKS,
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             composable(Routes.CLOCKS) {
@@ -149,7 +156,7 @@ fun AppRoot(
             composable(Routes.TIMERS) {
                 val vm: TimersViewModel = viewModel(factory = factory)
                 val editVm: TimerEditViewModel = viewModel(factory = factory)
-                TimersScreen(vm = vm, editVm = editVm)
+                TimersScreen(vm = vm, editVm = editVm, highlightedTimerId = openTimerId)
             }
             composable(Routes.STOPWATCHES) {
                 val vm: StopwatchesViewModel = viewModel(factory = factory)

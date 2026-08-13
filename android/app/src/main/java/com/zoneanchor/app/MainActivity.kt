@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.zoneanchor.app.domain.AppearanceMode
@@ -23,10 +24,12 @@ class MainActivity : ComponentActivity() {
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* user choice — handled by system */ }
+    private val openTimerId = mutableStateOf<Long?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        openTimerId.value = intent.openTimerId()
 
         requestNotificationPermissionIfNeeded()
 
@@ -38,9 +41,16 @@ class MainActivity : ComponentActivity() {
                 AppRoot(
                     container = app.container,
                     onOpenExactAlarmSettings = ::openExactAlarmSettings,
+                    openTimerId = openTimerId.value,
                 )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        openTimerId.value = intent.openTimerId()
     }
 
     private fun requestNotificationPermissionIfNeeded() {
@@ -65,5 +75,9 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_OPEN_ALARM_ID = "extra_open_alarm_id"
+        const val EXTRA_OPEN_TIMER_ID = "extra_open_timer_id"
     }
 }
+
+private fun Intent.openTimerId(): Long? =
+    getLongExtra(MainActivity.EXTRA_OPEN_TIMER_ID, -1L).takeIf { it >= 0L }

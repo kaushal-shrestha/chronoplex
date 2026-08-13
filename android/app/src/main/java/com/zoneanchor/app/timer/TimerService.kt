@@ -122,7 +122,11 @@ class TimerService : Service() {
             this,
             timerId.toInt(),
             Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(MainActivity.EXTRA_OPEN_TIMER_ID, timerId)
+                data = android.net.Uri.parse("zoneanchor://timer/$timerId/open")
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -145,7 +149,8 @@ class TimerService : Service() {
             .setSilent(false)
             .setContentIntent(contentPi)
             .addAction(0, getString(R.string.add_minute), action(timerId, TimerReceiver.ACTION_ADD_MINUTE, 1))
-            .addAction(0, getString(R.string.stop), action(timerId, TimerReceiver.ACTION_DISMISS, 2))
+            .addAction(0, getString(R.string.add_five_minutes), action(timerId, TimerReceiver.ACTION_ADD_FIVE_MINUTES, 2))
+            .addAction(0, getString(R.string.stop), action(timerId, TimerReceiver.ACTION_DISMISS, 3))
             .build()
     }
 

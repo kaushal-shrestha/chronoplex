@@ -27,8 +27,10 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,6 +79,7 @@ import kotlinx.coroutines.delay
 fun TimersScreen(
     vm: TimersViewModel,
     editVm: TimerEditViewModel,
+    highlightedTimerId: Long? = null,
 ) {
     val timers by vm.timers.collectAsState()
     val groups by vm.groups.collectAsState()
@@ -90,6 +93,9 @@ fun TimersScreen(
     var confirmClearAll by remember { mutableStateOf(false) }
     var editSheetOpen by remember { mutableStateOf(false) }
     if (timers.isEmpty() && reorderMode) reorderMode = false
+    val finishedTimers = timers.filter { it.state == TimerState.FINISHED }
+    val highlightedFinishedTimer = finishedTimers.firstOrNull { it.id == highlightedTimerId }
+    val alertTimer = highlightedFinishedTimer ?: finishedTimers.firstOrNull()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val deletedLabel = stringResource(R.string.timer_deleted)
@@ -193,11 +199,25 @@ fun TimersScreen(
             ) {
                 if (timers.isEmpty()) {
                     item { EmptyState(R.string.empty_timers_title, R.string.empty_timers_body) }
-                } else if (!groupingEnabled) {
+                } else {
+                    alertTimer?.let { timer ->
+                        item(key = "timer-alert-${timer.id}") {
+                            RingingTimerCard(
+                                timer = timer,
+                                ringingCount = finishedTimers.size,
+                                onDismiss = { vm.dismiss(timer) },
+                                onAddMinute = { vm.addMinute(timer) },
+                                onAddFiveMinutes = { vm.addMinutes(timer, 5) },
+                            )
+                        }
+                    }
+                }
+                if (!groupingEnabled) {
                     items(timers, key = { it.id }) { timer ->
                         TimerRow(
                             timer = timer,
                             nowMillis = now,
+                            highlighted = timer.id == highlightedTimerId && timer.state == TimerState.FINISHED,
                             onClick = { openEdit(timer) },
                             onPrimaryAction = {
                                 when (timer.state) {
@@ -206,6 +226,9 @@ fun TimersScreen(
                                 }
                             },
                             onReset = { vm.reset(timer) },
+                            onDismiss = { vm.dismiss(timer) },
+                            onAddMinute = { vm.addMinute(timer) },
+                            onAddFiveMinutes = { vm.addMinutes(timer, 5) },
                             onDelete = { handleDelete(timer) },
                             onLongClick = { actionsTarget = timer },
                         )
@@ -222,6 +245,7 @@ fun TimersScreen(
                                 TimerRow(
                                     timer = timer,
                                     nowMillis = now,
+                                    highlighted = timer.id == highlightedTimerId && timer.state == TimerState.FINISHED,
                                     onClick = { openEdit(timer) },
                                     onPrimaryAction = {
                                         when (timer.state) {
@@ -230,6 +254,9 @@ fun TimersScreen(
                                         }
                                     },
                                     onReset = { vm.reset(timer) },
+                                    onDismiss = { vm.dismiss(timer) },
+                                    onAddMinute = { vm.addMinute(timer) },
+                                    onAddFiveMinutes = { vm.addMinutes(timer, 5) },
                                     onDelete = { handleDelete(timer) },
                                     onLongClick = { actionsTarget = timer },
                                 )
@@ -250,6 +277,7 @@ fun TimersScreen(
                                 TimerRow(
                                     timer = timer,
                                     nowMillis = now,
+                                    highlighted = timer.id == highlightedTimerId && timer.state == TimerState.FINISHED,
                                     onClick = { openEdit(timer) },
                                     onPrimaryAction = {
                                         when (timer.state) {
@@ -258,6 +286,9 @@ fun TimersScreen(
                                         }
                                     },
                                     onReset = { vm.reset(timer) },
+                                    onDismiss = { vm.dismiss(timer) },
+                                    onAddMinute = { vm.addMinute(timer) },
+                                    onAddFiveMinutes = { vm.addMinutes(timer, 5) },
                                     onDelete = { handleDelete(timer) },
                                     onLongClick = { actionsTarget = timer },
                                 )
@@ -351,13 +382,18 @@ fun TimersScreen(
 private fun TimerRow(
     timer: Timer,
     nowMillis: Long,
+    highlighted: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onPrimaryAction: () -> Unit,
     onReset: () -> Unit,
+    onDismiss: () -> Unit,
+    onAddMinute: () -> Unit,
+    onAddFiveMinutes: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val remaining = timer.remainingMillis(nowMillis)
+    val isFinished = timer.state == TimerState.FINISHED
     val progress = if (timer.durationMillis > 0L) {
         1f - (remaining.toFloat() / timer.durationMillis.toFloat()).coerceIn(0f, 1f)
     } else 0f
@@ -367,6 +403,16 @@ private fun TimerRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .tappable(onLongClick = onLongClick, onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                isFinished || highlighted -> MaterialTheme.colorScheme.tertiaryContainer
+                else -> MaterialTheme.colorScheme.surfaceContainer
+            },
+            contentColor = when {
+                isFinished || highlighted -> MaterialTheme.colorScheme.onTertiaryContainer
+                else -> MaterialTheme.colorScheme.onSurface
+            },
+        ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -382,38 +428,50 @@ private fun TimerRow(
                         formatDuration(remaining),
                         fontSize = 30.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (timer.state == TimerState.FINISHED) MaterialTheme.colorScheme.tertiary
+                        color = if (isFinished) MaterialTheme.colorScheme.onTertiaryContainer
                                 else MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        stateLabel(timer.state),
+                        if (isFinished) stringResource(R.string.timer_ringing_now) else stateLabel(timer.state),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isFinished) MaterialTheme.colorScheme.onTertiaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = rememberTapFeedback(onPrimaryAction)) {
-                    Icon(
-                        when (timer.state) {
-                            TimerState.RUNNING -> Icons.Default.Pause
-                            else -> Icons.Default.PlayArrow
-                        },
-                        contentDescription = when (timer.state) {
-                            TimerState.RUNNING -> stringResource(R.string.pause)
-                            TimerState.PAUSED -> stringResource(R.string.resume)
-                            else -> stringResource(R.string.start)
-                        },
-                    )
-                }
-                IconButton(onClick = rememberTapFeedback(onReset)) {
-                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.reset))
+                if (!isFinished) {
+                    IconButton(onClick = rememberTapFeedback(onPrimaryAction)) {
+                        Icon(
+                            when (timer.state) {
+                                TimerState.RUNNING -> Icons.Default.Pause
+                                else -> Icons.Default.PlayArrow
+                            },
+                            contentDescription = when (timer.state) {
+                                TimerState.RUNNING -> stringResource(R.string.pause)
+                                TimerState.PAUSED -> stringResource(R.string.resume)
+                                else -> stringResource(R.string.start)
+                            },
+                        )
+                    }
+                    IconButton(onClick = rememberTapFeedback(onReset)) {
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.reset))
+                    }
                 }
                 IconButton(onClick = rememberTapFeedback(onDelete)) {
                     Icon(
                         Icons.Default.DeleteOutline,
                         contentDescription = stringResource(R.string.delete),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (isFinished) MaterialTheme.colorScheme.onTertiaryContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            if (isFinished) {
+                Spacer(Modifier.height(12.dp))
+                TimerAlertActions(
+                    onDismiss = onDismiss,
+                    onAddMinute = onAddMinute,
+                    onAddFiveMinutes = onAddFiveMinutes,
+                )
             }
             if (timer.state == TimerState.RUNNING || timer.state == TimerState.PAUSED) {
                 Spacer(Modifier.height(8.dp))
@@ -422,6 +480,84 @@ private fun TimerRow(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun RingingTimerCard(
+    timer: Timer,
+    ringingCount: Int,
+    onDismiss: () -> Unit,
+    onAddMinute: () -> Unit,
+    onAddFiveMinutes: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                text = stringResource(R.string.timer_alert_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = timer.label.ifBlank { stringResource(R.string.timer_finished_default_title) },
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = if (ringingCount > 1) {
+                    stringResource(R.string.timer_alert_multiple, ringingCount)
+                } else {
+                    stringResource(R.string.timer_alert_body)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(14.dp))
+            TimerAlertActions(
+                onDismiss = onDismiss,
+                onAddMinute = onAddMinute,
+                onAddFiveMinutes = onAddFiveMinutes,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimerAlertActions(
+    onDismiss: () -> Unit,
+    onAddMinute: () -> Unit,
+    onAddFiveMinutes: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(
+            onClick = rememberTapFeedback(onAddMinute),
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(stringResource(R.string.add_minute))
+        }
+        TextButton(
+            onClick = rememberTapFeedback(onAddFiveMinutes),
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(stringResource(R.string.add_five_minutes))
+        }
+        Button(
+            onClick = rememberTapFeedback(onDismiss),
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(stringResource(R.string.stop))
         }
     }
 }
