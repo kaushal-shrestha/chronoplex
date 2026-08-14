@@ -141,7 +141,12 @@ class TimerEditViewModel(
     fun save(autoStart: Boolean = false, onDone: () -> Unit) = viewModelScope.launch {
         val s = state.value
         if (!s.isValid) return@launch
-        val timer = Timer(
+        val existing = if (s.id > 0L) container.timerRepo.getById(s.id) else null
+        val timer = existing?.withEditableFields(
+            label = s.label,
+            durationMillis = s.totalMillis,
+            groupId = s.groupId,
+        ) ?: Timer(
             id = s.id,
             label = s.label,
             durationMillis = s.totalMillis,

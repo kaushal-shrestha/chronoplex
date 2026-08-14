@@ -79,6 +79,13 @@ data class Timer(
         TimerState.PAUSED -> pausedRemainingMillis ?: durationMillis
         TimerState.FINISHED -> 0L
     }
+
+    /** Apply editable fields without disturbing runtime state such as running countdowns. */
+    fun withEditableFields(label: String, durationMillis: Long, groupId: Long?): Timer = copy(
+        label = label,
+        durationMillis = durationMillis,
+        groupId = groupId,
+    )
 }
 
 enum class StopwatchState { IDLE, RUNNING, PAUSED }

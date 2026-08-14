@@ -115,6 +115,35 @@ class DomainModelsTest {
         ).isEqualTo(0L)
     }
 
+    @Test fun `timer editable fields do not disturb runtime state`() {
+        val running = Timer(
+            id = 7,
+            label = "Tea",
+            durationMillis = 180_000L,
+            state = TimerState.RUNNING,
+            endsAtMillis = 12_345L,
+            pausedRemainingMillis = null,
+            finishMode = TimerFinishMode.FULL_SCREEN,
+            sortOrder = 99L,
+            groupId = null,
+        )
+
+        val edited = running.withEditableFields(
+            label = "Coffee",
+            durationMillis = 240_000L,
+            groupId = 42L,
+        )
+
+        assertThat(edited.label).isEqualTo("Coffee")
+        assertThat(edited.durationMillis).isEqualTo(240_000L)
+        assertThat(edited.groupId).isEqualTo(42L)
+        assertThat(edited.state).isEqualTo(TimerState.RUNNING)
+        assertThat(edited.endsAtMillis).isEqualTo(12_345L)
+        assertThat(edited.pausedRemainingMillis).isNull()
+        assertThat(edited.finishMode).isEqualTo(TimerFinishMode.FULL_SCREEN)
+        assertThat(edited.sortOrder).isEqualTo(99L)
+    }
+
     @Test fun `stopwatch elapsed time is derived from state`() {
         assertThat(Stopwatch(label = "Idle").elapsedMillis(nowMillis = 10_000L)).isEqualTo(0L)
         assertThat(
