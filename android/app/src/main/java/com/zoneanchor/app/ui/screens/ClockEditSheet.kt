@@ -13,8 +13,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PublicOff
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -91,21 +93,24 @@ fun ClockEditSheet(
                     modifier = Modifier.weight(1f),
                 )
                 if (s.id != 0L) {
-                    TextButton(onClick = rememberTapFeedback {
-                        val id = s.id
-                        scope.launch {
-                            sheetState.hide()
-                            onDismiss()
-                            onDelete(id)
-                        }
-                    }) {
-                        Text(
-                            stringResource(R.string.delete),
-                            color = MaterialTheme.colorScheme.error,
+                    IconButton(
+                        onClick = rememberTapFeedback {
+                            val id = s.id
+                            scope.launch {
+                                sheetState.hide()
+                                onDismiss()
+                                onDelete(id)
+                            }
+                        },
+                    ) {
+                        Icon(
+                            Icons.Default.DeleteOutline,
+                            contentDescription = stringResource(R.string.delete),
+                            tint = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
-                TextButton(
+                IconButton(
                     onClick = rememberTapFeedback {
                         if (
                             s.id != 0L &&
@@ -120,7 +125,7 @@ fun ClockEditSheet(
                     },
                     enabled = s.zoneId.isNotBlank(),
                 ) {
-                    Text(stringResource(R.string.save))
+                    Icon(Icons.Default.Save, contentDescription = stringResource(R.string.save))
                 }
             }
 

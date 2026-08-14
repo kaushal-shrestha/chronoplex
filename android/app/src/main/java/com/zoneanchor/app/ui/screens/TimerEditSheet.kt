@@ -21,7 +21,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -31,7 +34,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -99,34 +101,38 @@ fun TimerEditSheet(
                     modifier = Modifier.weight(1f),
                 )
                 if (s.id != 0L) {
-                    TextButton(onClick = rememberTapFeedback {
-                        val id = s.id
-                        scope.launch {
-                            sheetState.hide()
-                            onDismiss()
-                            onDelete(id)
-                        }
-                    }) {
-                        Text(
-                            stringResource(R.string.delete),
-                            color = MaterialTheme.colorScheme.error,
+                    IconButton(
+                        onClick = rememberTapFeedback {
+                            val id = s.id
+                            scope.launch {
+                                sheetState.hide()
+                                onDismiss()
+                                onDelete(id)
+                            }
+                        },
+                    ) {
+                        Icon(
+                            Icons.Default.DeleteOutline,
+                            contentDescription = stringResource(R.string.delete),
+                            tint = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
-                TextButton(
+                IconButton(
                     onClick = rememberTapFeedback { vm.save(autoStart = false) { dismissAnimated() } },
                     enabled = s.isValid,
                 ) {
-                    Text(stringResource(R.string.save))
+                    Icon(Icons.Default.Save, contentDescription = stringResource(R.string.save))
                 }
                 if (canStartFromSheet) {
-                    TextButton(
+                    IconButton(
                         onClick = rememberTapFeedback { vm.save(autoStart = true) { dismissAnimated() } },
                         enabled = s.isValid,
                     ) {
-                        Text(
-                            stringResource(R.string.start),
-                            color = MaterialTheme.colorScheme.primary,
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = stringResource(R.string.start),
+                            tint = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
