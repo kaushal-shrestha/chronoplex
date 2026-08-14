@@ -75,8 +75,6 @@ class AlarmService : Service() {
 
             if (alarm.soundEnabled) playRingtone()
             if (alarm.vibrationEnabled) startVibration()
-
-            launchFullScreen(alarm.id)
         }
     }
 
@@ -183,14 +181,6 @@ class AlarmService : Service() {
             .setFullScreenIntent(fullScreenPi, true)
             .setContentIntent(fullScreenPi)
             .build()
-    }
-
-    private fun launchFullScreen(alarmId: Long) {
-        val intent = Intent(this, AlarmActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(AlarmActivity.EXTRA_ALARM_ID, alarmId)
-        }
-        startActivity(intent)
     }
 
     override fun onDestroy() {

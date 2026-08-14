@@ -69,7 +69,6 @@ class TimerService : Service() {
                 return@launch
             }
             postNotification(timerId = timerId, timer = timer)
-            launchFullScreen(timerId)
         }
     }
 
@@ -155,14 +154,6 @@ class TimerService : Service() {
             .addAction(0, getString(R.string.add_five_minutes), action(timerId, TimerReceiver.ACTION_ADD_FIVE_MINUTES, 2))
             .addAction(0, getString(R.string.stop), action(timerId, TimerReceiver.ACTION_DISMISS, 3))
             .build()
-    }
-
-    private fun launchFullScreen(timerId: Long) {
-        val intent = Intent(this, TimerAlertActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(TimerAlertActivity.EXTRA_TIMER_ID, timerId)
-        }
-        runCatching { startActivity(intent) }
     }
 
     private fun action(timerId: Long, action: String, salt: Int): PendingIntent {
