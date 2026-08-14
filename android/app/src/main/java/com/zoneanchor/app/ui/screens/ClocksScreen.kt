@@ -407,7 +407,6 @@ private fun ClocksList(
                     nowEpochMillis = now.toInstant().toEpochMilli(),
                     sourceClockId = converterSourceClockId,
                     pinnedEpochMillis = converterPinnedEpochMillis,
-                    onSourceClockSelected = onConverterSourceClock,
                     onPinnedEpochMillisChange = onConverterPinnedEpochMillis,
                     onClose = onCloseConverter,
                 )

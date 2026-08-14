@@ -43,11 +43,9 @@ import com.zoneanchor.app.ui.longPressable
 import com.zoneanchor.app.ui.rememberTapFeedback
 import com.zoneanchor.app.ui.tappable
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +54,6 @@ internal fun TimeConverterCard(
     nowEpochMillis: Long,
     sourceClockId: Long?,
     pinnedEpochMillis: Long?,
-    onSourceClockSelected: (Long?) -> Unit,
     onPinnedEpochMillisChange: (Long?) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -162,31 +159,15 @@ internal fun TimeConverterCard(
                 )
             }
 
-            if (clocks.isEmpty()) {
-                Text(
-                    stringResource(R.string.converter_no_clocks),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    clocks.forEach { clock ->
-                        val converted = remember(clock.zoneId, selectedEpochMillis) {
-                            ZonedDateTime.ofInstant(
-                                Instant.ofEpochMilli(selectedEpochMillis),
-                                ZoneId.of(clock.zoneId),
-                            )
-                        }
-                        ConverterResultRow(
-                            label = clock.label,
-                            time = timeFmt.format(converted),
-                            dayLabel = relativeDayLabel(sourceTime.toLocalDate(), converted.toLocalDate()),
-                            isSource = clock.id == sourceClockId,
-                            onClick = { onSourceClockSelected(clock.id) },
-                        )
-                    }
-                }
-            }
+            Text(
+                if (clocks.isEmpty()) {
+                    stringResource(R.string.converter_no_clocks)
+                } else {
+                    stringResource(R.string.converter_select_from_clock_rows)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 
@@ -219,67 +200,6 @@ internal fun TimeConverterCard(
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun ConverterResultRow(
-    label: String,
-    time: String,
-    dayLabel: String,
-    isSource: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .tappable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        color = if (isSource) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
-        },
-        border = if (isSource) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
-        } else {
-            null
-        },
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (isSource) FontWeight.Bold else FontWeight.Normal,
-                )
-                Text(
-                    if (isSource) stringResource(R.string.converter_source) else dayLabel,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(
-                time,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-    }
-}
-
-@Composable
-private fun relativeDayLabel(sourceDate: LocalDate, convertedDate: LocalDate): String {
-    return when (ChronoUnit.DAYS.between(sourceDate, convertedDate)) {
-        -1L -> stringResource(R.string.yesterday)
-        0L -> stringResource(R.string.today)
-        1L -> stringResource(R.string.tomorrow)
-        else -> DateTimeFormatter.ofPattern("MMM d").format(convertedDate)
     }
 }
 

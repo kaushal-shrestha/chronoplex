@@ -78,6 +78,7 @@
     <string name="convert_time">Convert time</string>
     <string name="hide_converter">Hide converter</string>
     <string name="converter_reference_hint">Select a clock below to use as the reference for conversion.</string>
+    <string name="converter_select_from_clock_rows">Tap a clock row below to choose the reference zone.</string>
     <string name="converter_when_it_is">When it is</string>
     <string name="converter_now">Now</string>
     <string name="converter_no_clocks">Add clocks to see converted times here.</string>
