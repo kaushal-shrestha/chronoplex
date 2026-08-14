@@ -17,6 +17,8 @@ class AlarmReceiver : BroadcastReceiver() {
         if (alarmId < 0) return
         when (intent.action) {
             ACTION_FIRE -> startRingService(context, alarmId)
+            ACTION_SNOOZE -> snoozeRingingAlarmAsync(context, alarmId)
+            ACTION_DISMISS -> dismissRingingAlarmAsync(context, alarmId)
             ACTION_CANCEL_SNOOZE -> cancelSnoozeAsync(context, alarmId)
         }
     }
@@ -33,6 +35,43 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun snoozeRingingAlarmAsync(context: Context, alarmId: Long) {
+        val pending = goAsync()
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                val app = context.applicationContext as ChronoplexApp
+                val alarm = app.container.alarmRepo.getById(alarmId) ?: return@launch
+                app.container.scheduler.snooze(alarm, minutes = ACTION_SNOOZE_MINUTES)
+                stopRingService(context)
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
+    private fun dismissRingingAlarmAsync(context: Context, alarmId: Long) {
+        val pending = goAsync()
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                val app = context.applicationContext as ChronoplexApp
+                val alarm = app.container.alarmRepo.getById(alarmId) ?: run {
+                    stopRingService(context)
+                    return@launch
+                }
+                app.container.alarmRepo.setSnoozeUntil(alarmId, null)
+                if (alarm.isOneShot) {
+                    app.container.alarmRepo.setEnabled(alarm.id, false)
+                    app.container.scheduler.cancel(alarm.id)
+                } else {
+                    app.container.scheduler.schedule(alarm.copy(snoozeUntilMillis = null))
+                }
+                stopRingService(context)
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
     private fun cancelSnoozeAsync(context: Context, alarmId: Long) {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
@@ -46,9 +85,16 @@ class AlarmReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun stopRingService(context: Context) {
+        context.stopService(Intent(context, AlarmService::class.java))
+    }
+
     companion object {
         const val ACTION_FIRE = "com.chronoplex.app.action.FIRE"
+        const val ACTION_SNOOZE = "com.chronoplex.app.action.SNOOZE"
+        const val ACTION_DISMISS = "com.chronoplex.app.action.DISMISS"
         const val ACTION_CANCEL_SNOOZE = "com.chronoplex.app.action.CANCEL_SNOOZE"
         const val EXTRA_ALARM_ID = "extra_alarm_id"
+        const val ACTION_SNOOZE_MINUTES = 5
     }
 }

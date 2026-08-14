@@ -58,6 +58,7 @@ class ClockRepositoryTest {
 
         override fun observeAll(): Flow<List<ClockEntity>> = rowsState
         override suspend fun getAll(): List<ClockEntity> = rowsState.value
+        override suspend fun getById(id: Long): ClockEntity? = rowsState.value.firstOrNull { it.id == id }
 
         override suspend fun upsert(clock: ClockEntity): Long {
             val id = if (clock.id == 0L) nextId++ else clock.id
