@@ -65,6 +65,7 @@ fun TimerEditSheet(
     var groupPickerOpen by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val canStartFromSheet = s.id == 0L || s.timerState.canStartFromEditSheet()
 
     fun dismissAnimated() {
         scope.launch {
@@ -118,14 +119,16 @@ fun TimerEditSheet(
                 ) {
                     Text(stringResource(R.string.save))
                 }
-                TextButton(
-                    onClick = rememberTapFeedback { vm.save(autoStart = true) { dismissAnimated() } },
-                    enabled = s.isValid,
-                ) {
-                    Text(
-                        stringResource(R.string.start),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                if (canStartFromSheet) {
+                    TextButton(
+                        onClick = rememberTapFeedback { vm.save(autoStart = true) { dismissAnimated() } },
+                        enabled = s.isValid,
+                    ) {
+                        Text(
+                            stringResource(R.string.start),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
 

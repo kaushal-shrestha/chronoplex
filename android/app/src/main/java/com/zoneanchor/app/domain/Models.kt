@@ -55,7 +55,14 @@ enum class AlarmRepeatType { ONCE, WEEKLY, MONTHLY_DAY, MONTHLY_WEEKDAY }
 
 enum class AppearanceMode { SYSTEM, LIGHT, DARK }
 
-enum class TimerState { IDLE, RUNNING, PAUSED, FINISHED }
+enum class TimerState {
+    IDLE,
+    RUNNING,
+    PAUSED,
+    FINISHED;
+
+    fun canStartFromEditSheet(): Boolean = this == IDLE || this == PAUSED
+}
 
 enum class TimerFinishMode { NOTIFICATION, FULL_SCREEN }
 

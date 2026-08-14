@@ -144,6 +144,11 @@ class DomainModelsTest {
         assertThat(edited.sortOrder).isEqualTo(99L)
     }
 
+    @Test fun `timer states identify edit sheet start eligibility`() {
+        assertThat(listOf(TimerState.IDLE, TimerState.PAUSED).all { it.canStartFromEditSheet() }).isTrue()
+        assertThat(listOf(TimerState.RUNNING, TimerState.FINISHED).none { it.canStartFromEditSheet() }).isTrue()
+    }
+
     @Test fun `stopwatch elapsed time is derived from state`() {
         assertThat(Stopwatch(label = "Idle").elapsedMillis(nowMillis = 10_000L)).isEqualTo(0L)
         assertThat(

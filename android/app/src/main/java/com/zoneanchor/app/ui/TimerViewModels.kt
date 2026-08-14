@@ -78,6 +78,7 @@ data class TimerEditState(
     /** 6-digit HHMMSS buffer; new digits shift in from the right. Range 0..999999. */
     val digits: Int = 0,
     val groupId: Long? = null,
+    val timerState: TimerState = TimerState.IDLE,
 ) {
     val seconds: Int get() = digits % 100
     val minutes: Int get() = (digits / 100) % 100
@@ -109,6 +110,7 @@ class TimerEditViewModel(
                 label = t.label,
                 digits = millisToDigits(t.durationMillis),
                 groupId = t.groupId,
+                timerState = t.state,
             )
         }
     }
