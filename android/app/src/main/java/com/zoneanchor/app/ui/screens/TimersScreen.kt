@@ -1,6 +1,5 @@
 package com.zoneanchor.app.ui.screens
 
-import com.zoneanchor.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +21,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
@@ -68,6 +68,7 @@ import com.zoneanchor.app.domain.Timer
 import com.zoneanchor.app.domain.TimerState
 import com.zoneanchor.app.ui.TimerEditViewModel
 import com.zoneanchor.app.ui.TimersViewModel
+import com.zoneanchor.app.ui.longPressable
 import com.zoneanchor.app.ui.rememberTapFeedback
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -218,7 +219,6 @@ fun TimersScreen(
                             timer = timer,
                             nowMillis = now,
                             highlighted = timer.id == highlightedTimerId && timer.state == TimerState.FINISHED,
-                            onClick = { openEdit(timer) },
                             onPrimaryAction = {
                                 when (timer.state) {
                                     TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
@@ -246,7 +246,6 @@ fun TimersScreen(
                                     timer = timer,
                                     nowMillis = now,
                                     highlighted = timer.id == highlightedTimerId && timer.state == TimerState.FINISHED,
-                                    onClick = { openEdit(timer) },
                                     onPrimaryAction = {
                                         when (timer.state) {
                                             TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
@@ -278,7 +277,6 @@ fun TimersScreen(
                                     timer = timer,
                                     nowMillis = now,
                                     highlighted = timer.id == highlightedTimerId && timer.state == TimerState.FINISHED,
-                                    onClick = { openEdit(timer) },
                                     onPrimaryAction = {
                                         when (timer.state) {
                                             TimerState.IDLE, TimerState.PAUSED, TimerState.FINISHED -> vm.start(timer)
@@ -325,11 +323,17 @@ fun TimersScreen(
     }
 
     actionsTarget?.let { timer ->
+        val editLabel = stringResource(R.string.edit)
         val moveLabel = stringResource(R.string.move_to_group)
         val deleteLabel = stringResource(R.string.delete)
         RowActionsSheet(
             title = timer.label.ifBlank { null },
             actions = buildList {
+                add(RowAction(
+                    label = editLabel,
+                    icon = Icons.Default.Edit,
+                    onClick = { actionsTarget = null; openEdit(timer) },
+                ))
                 if (groupingEnabled) {
                     add(RowAction(
                         label = moveLabel,
@@ -383,7 +387,6 @@ private fun TimerRow(
     timer: Timer,
     nowMillis: Long,
     highlighted: Boolean,
-    onClick: () -> Unit,
     onLongClick: () -> Unit,
     onPrimaryAction: () -> Unit,
     onReset: () -> Unit,
@@ -402,7 +405,7 @@ private fun TimerRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .tappable(onLongClick = onLongClick, onClick = onClick),
+            .longPressable(onLongPress = onLongClick),
         colors = CardDefaults.cardColors(
             containerColor = when {
                 isFinished || highlighted -> MaterialTheme.colorScheme.tertiaryContainer

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zoneanchor.app.R
 import com.zoneanchor.app.domain.Clock
+import com.zoneanchor.app.ui.longPressable
 import com.zoneanchor.app.ui.rememberTapFeedback
 import com.zoneanchor.app.ui.tappable
 import java.time.Instant
@@ -352,7 +353,7 @@ internal fun ClockRow(
     nowEpochMillis: Long,
     converterOpen: Boolean,
     isConverterSource: Boolean,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     onLongClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -366,11 +367,18 @@ internal fun ClockRow(
     }
     val fmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
     val dateFmt = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
+    val cardModifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(16.dp))
+        .let { base ->
+            if (onClick == null) {
+                base.longPressable(onLongPress = onLongClick)
+            } else {
+                base.tappable(onLongClick = onLongClick, onClick = onClick)
+            }
+        }
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .tappable(onLongClick = onLongClick, onClick = onClick),
+        modifier = cardModifier,
         colors = if (converterOpen && isConverterSource) {
             CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -210,7 +211,6 @@ fun ClocksScreen(
                     onConverterSourceClock = { converterSourceClockId = it },
                     onConverterPinnedEpochMillis = { converterPinnedEpochMillis = it },
                     onCloseConverter = { converterOpen = false },
-                    onEdit = ::openEdit,
                     onLongPress = { actionsTarget = it },
                     onDelete = ::handleDelete,
                     onToggleCollapsed = { vm.toggleCollapsed(it) },
@@ -231,11 +231,17 @@ fun ClocksScreen(
         )
     }
     actionsTarget?.let { clock ->
+        val editLabel = stringResource(R.string.edit)
         val moveLabel = stringResource(R.string.move_to_group)
         val deleteLabel = stringResource(R.string.delete)
         RowActionsSheet(
             title = clock.label,
             actions = buildList {
+                add(RowAction(
+                    label = editLabel,
+                    icon = Icons.Default.Edit,
+                    onClick = { actionsTarget = null; openEdit(clock) },
+                ))
                 if (groupingEnabled) {
                     add(RowAction(
                         label = moveLabel,
@@ -376,7 +382,6 @@ private fun ClocksList(
     onConverterSourceClock: (Long?) -> Unit,
     onConverterPinnedEpochMillis: (Long?) -> Unit,
     onCloseConverter: () -> Unit,
-    onEdit: (Clock) -> Unit,
     onLongPress: (Clock) -> Unit,
     onDelete: (Clock) -> Unit,
     onToggleCollapsed: (Group) -> Unit,
@@ -425,10 +430,7 @@ private fun ClocksList(
                     nowEpochMillis = now.toInstant().toEpochMilli(),
                     converterOpen = converterOpen,
                     isConverterSource = converterSourceClockId == clock.id,
-                    onClick = {
-                        if (converterOpen) onConverterSourceClock(clock.id)
-                        else onEdit(clock)
-                    },
+                    onClick = if (converterOpen) ({ onConverterSourceClock(clock.id) }) else null,
                     onLongClick = { onLongPress(clock) },
                     onDelete = { onDelete(clock) },
                 )
@@ -447,10 +449,7 @@ private fun ClocksList(
                             nowEpochMillis = now.toInstant().toEpochMilli(),
                             converterOpen = converterOpen,
                             isConverterSource = converterSourceClockId == clock.id,
-                            onClick = {
-                                if (converterOpen) onConverterSourceClock(clock.id)
-                                else onEdit(clock)
-                            },
+                            onClick = if (converterOpen) ({ onConverterSourceClock(clock.id) }) else null,
                             onLongClick = { onLongPress(clock) },
                             onDelete = { onDelete(clock) },
                         )
@@ -473,10 +472,7 @@ private fun ClocksList(
                             nowEpochMillis = now.toInstant().toEpochMilli(),
                             converterOpen = converterOpen,
                             isConverterSource = converterSourceClockId == clock.id,
-                            onClick = {
-                                if (converterOpen) onConverterSourceClock(clock.id)
-                                else onEdit(clock)
-                            },
+                            onClick = if (converterOpen) ({ onConverterSourceClock(clock.id) }) else null,
                             onLongClick = { onLongPress(clock) },
                             onDelete = { onDelete(clock) },
                         )

@@ -1,6 +1,5 @@
 package com.zoneanchor.app.ui.screens
 
-import com.zoneanchor.app.ui.tappable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
@@ -70,6 +70,7 @@ import com.zoneanchor.app.domain.DayMask
 import com.zoneanchor.app.domain.Group
 import com.zoneanchor.app.ui.AlarmEditViewModel
 import com.zoneanchor.app.ui.AlarmsViewModel
+import com.zoneanchor.app.ui.longPressable
 import com.zoneanchor.app.ui.rememberTapFeedback
 import com.zoneanchor.app.ui.rememberToggleFeedback
 import com.zoneanchor.app.ui.needsExactAlarmGrant
@@ -206,7 +207,6 @@ fun AlarmsScreen(
                             alarm = alarm,
                             zoneLabel = alarmZoneLabel(alarm, clocksById, alarmZoneDisplay),
                             nowMillis = nowMillis,
-                            onClick = { openEdit(alarm) },
                             onLongClick = { actionsTarget = alarm },
                             onToggle = { vm.toggleEnabled(alarm) },
                         )
@@ -224,7 +224,6 @@ fun AlarmsScreen(
                                     alarm = alarm,
                                     zoneLabel = alarmZoneLabel(alarm, clocksById, alarmZoneDisplay),
                                     nowMillis = nowMillis,
-                                    onClick = { openEdit(alarm) },
                                     onLongClick = { actionsTarget = alarm },
                                     onToggle = { vm.toggleEnabled(alarm) },
                                 )
@@ -246,7 +245,6 @@ fun AlarmsScreen(
                                     alarm = alarm,
                                     zoneLabel = alarmZoneLabel(alarm, clocksById, alarmZoneDisplay),
                                     nowMillis = nowMillis,
-                                    onClick = { openEdit(alarm) },
                                     onLongClick = { actionsTarget = alarm },
                                     onToggle = { vm.toggleEnabled(alarm) },
                                 )
@@ -296,11 +294,17 @@ fun AlarmsScreen(
     }
 
     actionsTarget?.let { alarm ->
+        val editLabel = stringResource(R.string.edit)
         val moveLabel = stringResource(R.string.move_to_group)
         val deleteLabel = stringResource(R.string.delete)
         RowActionsSheet(
             title = alarm.label.ifBlank { null },
             actions = buildList {
+                add(RowAction(
+                    label = editLabel,
+                    icon = Icons.Default.Edit,
+                    onClick = { actionsTarget = null; openEdit(alarm) },
+                ))
                 if (groupingEnabled) {
                     add(RowAction(
                         label = moveLabel,
@@ -434,7 +438,6 @@ private fun AlarmRow(
     alarm: Alarm,
     zoneLabel: String,
     nowMillis: Long,
-    onClick: () -> Unit,
     onLongClick: () -> Unit,
     onToggle: () -> Unit,
 ) {
@@ -446,7 +449,7 @@ private fun AlarmRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .tappable(onLongClick = onLongClick, onClick = onClick),
+            .longPressable(onLongPress = onLongClick),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
