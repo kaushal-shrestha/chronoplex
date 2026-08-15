@@ -17,6 +17,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +64,18 @@ internal fun TimeConverterCard(
     val selectedEpochMillis = pinnedEpochMillis ?: nowEpochMillis
     val sourceTime = remember(sourceZoneId, selectedEpochMillis) {
         ZonedDateTime.ofInstant(Instant.ofEpochMilli(selectedEpochMillis), ZoneId.of(sourceZoneId))
+    }
+    val deviceLabel = stringResource(R.string.device_time)
+    val deviceZoneId = ZoneId.systemDefault().id
+    val convertedTargets = remember(clocks, sourceClockId, deviceLabel, deviceZoneId) {
+        buildList {
+            if (sourceClockId != null) {
+                add(ConverterTarget(deviceLabel, deviceZoneId))
+            }
+            clocks
+                .filterNot { it.id == sourceClockId }
+                .forEach { add(ConverterTarget(it.label, it.zoneId)) }
+        }
     }
     val timeFmt = remember { DateTimeFormatter.ofPattern("h:mm a") }
     val dateFmt = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
@@ -159,6 +172,44 @@ internal fun TimeConverterCard(
                 )
             }
 
+            if (convertedTargets.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.46f),
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.converter_converted_times),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        convertedTargets.forEachIndexed { index, target ->
+                            val converted = ZonedDateTime.ofInstant(
+                                Instant.ofEpochMilli(selectedEpochMillis),
+                                ZoneId.of(target.zoneId),
+                            )
+                            if (index > 0) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.62f),
+                                )
+                            }
+                            ConvertedTimeRow(
+                                label = target.label,
+                                zoneId = target.zoneId,
+                                time = timeFmt.format(converted),
+                                date = dateFmt.format(converted),
+                            )
+                        }
+                    }
+                }
+            }
+
             Text(
                 if (clocks.isEmpty()) {
                     stringResource(R.string.converter_no_clocks)
@@ -199,6 +250,45 @@ internal fun TimeConverterCard(
                     Text(stringResource(R.string.cancel))
                 }
             },
+        )
+    }
+}
+
+private data class ConverterTarget(
+    val label: String,
+    val zoneId: String,
+)
+
+@Composable
+private fun ConvertedTimeRow(
+    label: String,
+    zoneId: String,
+    time: String,
+    date: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                "$zoneId - $date",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            time,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
